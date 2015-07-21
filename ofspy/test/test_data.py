@@ -15,5 +15,17 @@ limitations under the License.
 """
 
 """
-OFSPY: Orbital Federates Simulation (Python).
+Test cases for L{ofspy.data}.
 """
+
+import unittest
+
+from ..data import Data
+
+class DataTestCase(unittest.TestCase):
+    def setUp(self):
+        self.sar0 = Data('SAR',0)
+        self.sar1 = Data('SAR',1)
+    def tearDown(self):
+        self.sar0 = None
+        self.sar1 = None

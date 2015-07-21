@@ -15,5 +15,23 @@ limitations under the License.
 """
 
 """
-OFSPY: Orbital Federates Simulation (Python).
+Test cases for L{ofspy.disturbance}.
 """
+
+import unittest
+
+from ..disturbance import Disturbance
+
+class DisturbanceTestCase(unittest.TestCase):
+    def setUp(self):
+        self.default = Disturbance(0)
+        self.basic = Disturbance(1, 0.2, 1)
+    def tearDown(self):
+        self.default = None
+        self.basic = None
+    def test_isDisturbance(self):
+        self.assertTrue(self.default.isDisturbance())
+        self.assertTrue(self.basic.isDisturbance())
+    def test_isDemand(self):
+        self.assertFalse(self.default.isDemand())
+        self.assertFalse(self.basic.isDemand())

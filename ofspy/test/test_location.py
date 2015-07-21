@@ -15,5 +15,19 @@ limitations under the License.
 """
 
 """
-OFSPY: Orbital Federates Simulation (Python).
+Test cases for L{ofspy.location}.
 """
+
+import unittest
+
+from ..location import Location
+
+class LocationTestCase(unittest.TestCase):
+    def setUp(self):
+        self.default = Location(0)
+    def tearDown(self):
+        self.default = None
+    def test_isSurface(self):
+        self.assertFalse(self.default.isSurface())
+    def test_isOrbit(self):
+        self.assertFalse(self.default.isOrbit())

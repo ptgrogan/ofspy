@@ -15,5 +15,19 @@ limitations under the License.
 """
 
 """
-OFSPY: Orbital Federates Simulation (Python).
+Test cases for L{ofspy.defense}.
 """
+
+import unittest
+
+from ..defense import Defense
+
+class DefenseTestCase(unittest.TestCase):
+    def setUp(self):
+        self.default = Defense()
+        
+    def tearDown(self):
+        self.default = None
+    
+    def test_isDefense(self):
+        self.assertTrue(self.default.isDefense())

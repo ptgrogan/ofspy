@@ -15,5 +15,19 @@ limitations under the License.
 """
 
 """
-OFSPY: Orbital Federates Simulation (Python).
+Data class.
 """
+
+class Data(object):
+    def __init__(self, phenomenon, size, contract=None):
+        """
+        @param phenomenon: the phenomenon of this data
+        @type phenomenon: L{str}
+        @param size: the size of this data
+        @type size: L{int}
+        @param contractId: the contract for this data
+        @type contractId: L{str}
+        """
+        self.phenomenon = phenomenon
+        self.size = size
+        self.contract = contract

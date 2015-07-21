@@ -15,5 +15,19 @@ limitations under the License.
 """
 
 """
-OFSPY: Orbital Federates Simulation (Python).
+Test cases for L{ofspy.orbit}.
 """
+
+import unittest
+
+from ..orbit import Orbit
+
+class OrbitTestCase(unittest.TestCase):
+    def setUp(self):
+        self.default = Orbit(0, "LEO")
+    def tearDown(self):
+        self.default = None
+    def test_isSurface(self):
+        self.assertFalse(self.default.isSurface())
+    def test_isOrbit(self):
+        self.assertTrue(self.default.isOrbit())
