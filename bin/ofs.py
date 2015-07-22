@@ -20,6 +20,7 @@ sys.path.append(os.path.abspath('..'))
 
 import argparse
 import logging
+import math
 
 from ofspy.game import Game
 from ofspy.simulator import Simulator
@@ -94,7 +95,7 @@ def execute():
                 # parse modules
                 if pId < len(federates) and location is not None:                    
                     # generate elements
-                    element = game.generateElement(eType, pId, eId)
+                    element = game.generateElement(eType, pId, eId, mTypes=specs[1:])
                     if element is not None:
                         designSets[pId].append({'element':element,
                                                 'location':location})
@@ -116,10 +117,16 @@ def execute():
         for federate in [federate for federation in context.federations
                          for federate in federation.federates]:
             federate.liquidate(context)
-            logging.info('{0} final cash: {1}'
+            logging.info('{} final cash: {}'
                         .format(federate.name, federate.cash))
-            logging.info('{0} ROI: {1}'
-                        .format(federate.name, federate.cash/federate.initialCash))
+            logging.info('{} ROI: {:.2f}'
+                        .format(federate.name, (float(federate.cash)/federate.initialCash)
+                                if federate.initialCash != 0 else 0))
+            logging.info('{} %ROI/turn: {:.2%}'
+                        .format(federate.name, (math.pow(float(federate.cash)
+                                                         /federate.initialCash,
+                                                         1./sim.maxTime)-1)
+                                if federate.initialCash != 0 else 0))
             print '{0}:{1}'.format(federate.initialCash, federate.cash)
             
     sim.on('init', initializeGame)

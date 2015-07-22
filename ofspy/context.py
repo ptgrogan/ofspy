@@ -28,7 +28,7 @@ class Context(Entity):
     A L{Context} contains the complete simulation state.
     """
     
-    def __init__(self, locations=[], events=[], federations=[], seed=0):
+    def __init__(self, locations=None, events=None, federations=None, seed=0):
         """
         @param locations: the locations in this context
         @type locations: L{list}
@@ -40,12 +40,21 @@ class Context(Entity):
         @type seed: L{int}
         """
         Entity.__init__(self, 'context')
-        self.locations = locations
-        self.events = events
+        if locations is None:
+            self.locations = []
+        else:
+            self.locations = locations
+        if events is None:
+            self.events = []
+        else:
+            self.events = events
         self.currentEvents = []
         self.futureEvents = []
         self.pastEvents = []
-        self.federations = federations
+        if federations is None:
+            self.federations = []
+        else:
+            self.federations = federations
         self.seed = seed
         
         self.sectors = frozenset(l.sector for l in self.locations)
@@ -55,23 +64,36 @@ class Context(Entity):
         self._nextTime = 0
     
     def propagate(self, location, duration):
+        """
+        Propagates a location over a specified duration.
+        @param location: the location to propagate
+        @type location: L{Location}
+        @param duration: the duration for which to propagate
+        @type duration: L{float}
+        @return: L{Location}
+        """
         if location is not None and location.isOrbit():
+            distance = 0
             if location.altitude == "LEO":
-                return self.propagateImpl(location, 2*duration)
+                distance = 2*duration
             elif location.altitude == "MEO":
-                return self.propagateImpl(location, 1*duration)
+                distance = 1*duration
             elif location.altitude == "GEO":
-                return self.propagateImpl(location, 0*duration)
+                distance = 0*duration
+            path = [l for l in self.locations
+                    if l.isOrbit()
+                    and l.altitude == location.altitude]
+            return next((p for p in path
+                        if p.sector == (location.sector
+                                        + distance) % len(path)), None)
         return location
     
-    def propagateImpl(self, location, distance):
-        path = [l for l in self.locations
-                if l.isOrbit()
-                and l.altitude == location.altitude]
-        return next((p for p in path
-                    if p.sector == (location.sector + distance) % len(path)), None)
-    
     def init(self, sim):
+        """
+        Initializes this context in a simulation.
+        @param sim: the simulator
+        @type sim: L{Simulator}
+        """
         super(Context, self).init(sim)
         self.masterStream = random.Random(self.seed)
         self.shuffleStream = random.Random(self.masterStream.random())
@@ -91,12 +113,20 @@ class Context(Entity):
             federation.init(sim)
         
     def tick(self, sim):
+        """
+        Ticks this context in a simulation.
+        @param sim: the simulator
+        @type sim: L{Simulator}
+        """
         super(Context, self).tick(sim)
         for federation in self.federations:
             federation.tick(sim)
         self._nextTime = self.time + sim.timeStep
     
     def tock(self):
+        """
+        Tocks this context in a simulation.
+        """
         super(Context, self).tock()
         for federation in self.federations:
             federation.tock()
@@ -126,10 +156,11 @@ class Context(Entity):
                              if element.location is location]:
                  logging.debug('-{0}'.format(element.name))
                  for module in element.modules:
-                     logging.debug(' -{0}'.format(module.name))
-                     for d in module.data:
-                         logging.debug('  -{0} {1}'.format(data.phenomenon,
-                                                           data.contract))
+                    if len(module.data) > 0:
+                        logging.debug(' -{0}'.format(module.name))
+                        for d in module.data:
+                            logging.debug('  -{0} {1}'.format(d.phenomenon,
+                                                              d.contract))
         
         # reveal and resolve new events in each sector
         while len(self.currentEvents) > 0:
@@ -178,13 +209,15 @@ class Context(Entity):
                                                         .format(element.name, module.name))
         self.time = self._nextTime
         logging.info('Commence operations for time {0}'.format(self.time))
+        federates = [federate for federation in self.federations
+                         for federate in federation.federates]
+        random.shuffle(federates, random=self.shuffleStream.random)
+        for federate in federates:
+            federate.operations.execute(federate, self)
+        
         federations = self.federations[:]
         random.shuffle(federations, random=self.shuffleStream.random)
         for federation in federations:
-            federates = federation.federates[:]
-            random.shuffle(federates, random=self.shuffleStream.random)
-            for federate in federates:
-                federate.operations.execute(federate, self)
             federation.operations.execute(federation, self)
         
         for federate in [federate for federation in self.federations

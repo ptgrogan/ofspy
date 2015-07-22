@@ -82,4 +82,4 @@ class Contract(Entity):
         Tocks this contract in a simulation.
         """
         super(Contract, self).tock()
-        self.elapsedTime = self._nextElapsedTime    
+        self.elapsedTime = self._nextElapsedTime

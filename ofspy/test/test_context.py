@@ -88,13 +88,7 @@ class ContextTestCase(unittest.TestCase):
         self.assertEqual(self.default.propagate(self.locs[3], 0), self.locs[3])
         self.assertEqual(self.default.propagate(self.locs[3], 1), self.locs[3])
         self.assertEqual(self.default.propagate(self.locs[3], 2), self.locs[3])
-    def test_propagateImpl(self):
-        self.assertEqual(self.default.propagateImpl(self.locs[1], 0), self.locs[1])
-        self.assertEqual(self.default.propagateImpl(self.locs[1], 1), self.locs[5])
-        self.assertEqual(self.default.propagateImpl(self.locs[1], 2), self.locs[9])
-        self.assertEqual(self.default.propagateImpl(self.locs[1], 4), self.locs[17])
-        self.assertEqual(self.default.propagateImpl(self.locs[1], 6), self.locs[1])
-        self.assertEqual(self.default.propagateImpl(self.locs[1], -1), self.locs[21])
+        
     def test_init(self):
         self.assertEqual(self.default.currentEvents, [])
         self.assertEqual(self.default.futureEvents, [])

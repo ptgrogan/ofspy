@@ -19,7 +19,7 @@ Simulator class.
 """
 
 class Simulator(object):
-    def __init__(self, entities=[], initTime=0, timeStep=1, maxTime=10):
+    def __init__(self, entities=None, initTime=0, timeStep=1, maxTime=10):
         """
         @param entities: the set of entities
         @type entities: L{list}
@@ -30,7 +30,10 @@ class Simulator(object):
         @param maxTime: the maximum simulation time
         @type maxTime: L{float}
         """
-        self.entities = entities
+        if entities is None:
+            self.entities = []
+        else:
+            self.entities = entities
         self.timeStep = timeStep
         self.initTime = initTime
         self.maxTime = maxTime

@@ -50,3 +50,9 @@ class Event(object):
         @return: L{bool}
         """
         return False
+    
+    def __str__(self):
+        """
+        Gets the string representation of this event.
+        """
+        return self.name

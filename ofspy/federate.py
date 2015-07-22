@@ -25,8 +25,8 @@ from .contract import Contract
 from .operations import Operations
 
 class Federate(Entity):
-    def __init__(self, name=None, initialCash=0, elements=[],
-                 contracts=[], operations=Operations()):
+    def __init__(self, name=None, initialCash=0, elements=None,
+                 contracts=None, operations=Operations()):
         """
         @param name: the name of this federate
         @type name: L{str}
@@ -45,8 +45,16 @@ class Federate(Entity):
             Entity.__init__(self)
         self.initialCash = initialCash
         self.cash = self.initialCash
-        self.elements = elements
-        self.contracts = contracts
+        if elements is None:
+            self._initElements = []
+        else:
+            self._initElements = elements
+        self.elements = self._initElements
+        if contracts is None:
+            self._initContracts = []
+        else:
+            self._initContracts = contracts
+        self.contracts = self._initContracts
         self.operations = operations
     
     def design(self, element):
@@ -237,20 +245,20 @@ class Federate(Entity):
         @type rxElement: L{Element}
         @return: L{bool}
         """
-        if canTransport(protocol, data, txElement, rxElement):
+        if self.canTransport(protocol, data, txElement, rxElement):
             if not txElement.transmit(protocol, data, rxElement):
                 logging.warning('{0} could not transmit data to {1} with {2}'
-                             .format(txElement.name, rxElement.name, prototcol))
-            elif not rxElement.transmit(protocol, data, txElement):
+                             .format(txElement.name, rxElement.name, protocol))
+            elif not rxElement.receive(protocol, data, txElement):
                 logging.warning('{0} could not receive data from {1} with {2}'
-                             .format(rxElement.name, txElement.name, prototcol))
+                             .format(rxElement.name, txElement.name, protocol))
             else:
                 logging.info('{0} transported data from {1} to {2} with {3}'
                             .format(self.name, txElement.name, rxElement.name, protocol))
                 return True
         else:
             logging.warning('{0} could not transport data between {1} and {2} with {3}'
-                         .format(self.name, txElement.name, rxElement.name, prototcol))
+                         .format(self.name, txElement.name, rxElement.name, protocol))
         return False
     
     def default(self, contract, context):
@@ -266,7 +274,7 @@ class Federate(Entity):
             logging.warning('{0} does not own {1}.'
                         .format(self.name, contract.name))
         else:
-            self.cash -= contract.demand.getDefaultValue()
+            self.cash += contract.demand.getDefaultValue()
             self.deleteData(contract)
             self.contracts.remove(contract)
             context.pastEvents.append(contract.demand)
@@ -287,6 +295,8 @@ class Federate(Entity):
                 for d in module.data[:]:
                     if d.contract is contract:
                         module.data.remove(d)
+                        return True
+        return False
     
     def getDataLocation(self, contract):
         """
@@ -300,6 +310,40 @@ class Federate(Entity):
                      if any(any(d.contract is contract
                                 for d in module.data)
                             for module in element.modules)), None)
+    
+    def getDataElement(self, contract):
+        """
+        Gets the element containing data for a contract.
+        @param contract: the contract
+        @type contract: L{Contract}
+        @return: L{Element}
+        """
+        return next((element for element in self.elements
+                     if any(d.contract is contract
+                            for m in element.modules
+                            for d in m.data)), None)
+    
+    def getData(self, contract):
+        """
+        Gets the data for a contract.
+        @param contract: the contract
+        @type contract: L{Contract}
+        @return: L{Data}
+        """
+        return next((d for e in self.elements
+                     for m in e.modules
+                     for d in m.data
+                     if d.contract is contract), None)
+    
+    def getContract(self, demand):
+        """
+        Gets the contract for a demand.
+        @param demand: the demand
+        @type demand: L{Demand}
+        @return: L{Contract}
+        """
+        return next((contract for contract in self.contracts
+                    if contract.demand is demand), None)
     
     def resolve(self, contract, context):
         """
@@ -320,7 +364,7 @@ class Federate(Entity):
             context.pastEvents.append(contract.demand)
             logging.info('{0} completed {1} for {2} reward'
                         .format(self.name, contract.name,
-                                contract.contract.getValue()))
+                                contract.getValue()))
             return True
         return False
     
@@ -331,8 +375,10 @@ class Federate(Entity):
         """
         super(Federate, self).init(sim)
         self.cash = self.initialCash
+        self.elements = self._initElements
         for element in self.elements:
             element.init(sim)
+        self.contracts = self._initContracts
         for contract in self.contracts:
             contract.init(sim)
     

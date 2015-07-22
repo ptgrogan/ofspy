@@ -51,4 +51,9 @@ class ValueSchedule(object):
         @return: L{float}
         """
         return max(tvp[0] for tvp in self.timeValuePairs)
-        
+    
+    def __str__(self):
+        """
+        Gets the string representation of this value schedule.
+        """
+        return '[{0}, {1}]'.format(self.timeValuePairs, self.defaultValue)

@@ -49,3 +49,9 @@ class Entity(object):
         Tocks this entity in a simulation.
         """
         pass
+    
+    def __str__(self):
+        """
+        Gets the string representation of this entity.
+        """
+        return self.name

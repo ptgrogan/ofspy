@@ -38,6 +38,7 @@ class Module(Entity):
         self.size = size
         self.capacity = capacity
         self.data = []
+        self._initData = []
     
     def getContentsSize(self):
         """
@@ -199,6 +200,15 @@ class Module(Entity):
         @return: L{bool}
         """
         return False
+    
+    def init(self, sim):
+        """
+        Initializes this module in a simulation.
+        @param sim: the simulator
+        @type sim: L{Simulator}
+        """
+        super(Module, self).init(sim)
+        self.data = self._initData
     
     def tock(self):
         """

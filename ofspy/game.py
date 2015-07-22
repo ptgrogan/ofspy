@@ -19,6 +19,7 @@ Game class.
 """
 
 import logging
+import re
 
 from .context import Context
 from .surface import Surface
@@ -29,7 +30,7 @@ from .valueSchedule import ValueSchedule
 from .federation import Federation
 from .federate import Federate
 from .operations import Operations
-
+from .operations import DynamicOperations
 from .groundStation import GroundStation
 from .satellite import Satellite
 
@@ -133,7 +134,7 @@ class Game(object):
             return GroundStation(cost=spec['cost'],
                                  capacity=spec['capacity'],
                                  modules=modules,
-                                 name='{0}-{1}.{2}'.format(
+                                 name='{0}_{1}.{2}'.format(
                                     spec['type'], pId+1, eId+1)
                                  if pId is not None
                                  and eId is not None
@@ -144,7 +145,7 @@ class Game(object):
             return Satellite(cost=spec['cost'],
                              capacity=spec['capacity'],
                              modules=modules,
-                             name='{0}-{1}.{2}'.format(
+                             name='{0}_{1}.{2}'.format(
                                 spec['type'], pId+1, eId+1)
                              if pId is not None
                              and eId is not None
@@ -174,7 +175,7 @@ class Game(object):
                 capacity=spec['capacity'],
                 maxTransmitted=spec['maxTransmitted'],
                 maxReceived=spec['maxReceived'],
-                name='{0}-{1}.{2}.{3}'.format(
+                name='{0}_{1}.{2}.{3}'.format(
                     spec['type'], pId+1, eId+1, mId+1)
                 if pId is not None
                 and eId is not None
@@ -190,7 +191,7 @@ class Game(object):
                 capacity=spec['capacity'],
                 maxTransmitted=spec['maxTransmitted'],
                 maxReceived=spec['maxReceived'],
-                name='{0}-{1}.{2}.{3}'.format(
+                name='{0}_{1}.{2}.{3}'.format(
                     spec['type'], pId+1, eId+1, mId+1)
                 if pId is not None
                 and eId is not None
@@ -205,7 +206,7 @@ class Game(object):
                 size=spec['size'],
                 capacity=spec['capacity'],
                 maxSensed=spec['maxSensed'],
-                name='{0}-{1}.{2}.{3}'.format(
+                name='{0}_{1}.{2}.{3}'.format(
                     spec['type'], pId+1, eId+1, mId+1)
                 if pId is not None
                 and eId is not None
@@ -218,7 +219,7 @@ class Game(object):
                 cost=spec['cost'],
                 size=spec['size'],
                 capacity=spec['capacity'],
-                name='{0}-{1}.{2}.{3}'.format(
+                name='{0}_{1}.{2}.{3}'.format(
                     spec['type'], pId+1, eId+1, mId+1)
                 if pId is not None
                 and eId is not None
@@ -230,7 +231,7 @@ class Game(object):
             return Defense(
                 cost=spec['cost'],
                 size=spec['size'],
-                name='{0}-{1}.{2}.{3}'.format(
+                name='{0}_{1}.{2}.{3}'.format(
                     spec['type'], pId+1, eId+1, mId+1)
                 if pId is not None
                 and eId is not None
@@ -272,14 +273,33 @@ class Game(object):
                     logging.warning('Cannot interpret event type {0}'.format(eType))
         federates = []
         for i in range(self.numPlayers):
-            operations = Operations()
-            # TODO configure operations
+            if re.match('d', ops):
+                planningHorizon = 6
+                storagePenalty = -10
+                islPenalty = -10
+                result = re.search('(\d+,(?:a|\d+),\d+)', ops)
+                if result:
+                    args = result.group(0).split(',')
+                    planningHorizon = int(args[0])
+                    if args[1]== 'a':
+                        storagePenalty = None
+                    else:
+                        storagePenalty = -1*int(args[1])
+                    islPenalty = -1*int(args[2])
+                result = re.search('(\d+)', ops)
+                if result:
+                    planningHorizon = int(result.group(0))
+                operations = DynamicOperations(planningHorizon=planningHorizon,
+                                               storagePenalty=storagePenalty,
+                                               islPenalty=islPenalty)
+            else:
+                operations = Operations()
             federates.append(Federate(name='P{0}'.format(i+1),
                                     initialCash=self.initialCash,
                                     operations=operations,
                                     elements=[]))
         fedOps = Operations()
-        # TODO configure operations
+        # TODO configure fed operations
         federation = Federation(name='FSS', federates=federates, operations=fedOps)
         
         return Context(locations=locations, events=events,

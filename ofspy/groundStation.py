@@ -21,7 +21,7 @@ GroundStation class.
 from .element import Element
 
 class GroundStation(Element):
-    def __init__(self, name=None, cost=0, capacity=0, modules=[]):
+    def __init__(self, name=None, cost=0, capacity=0, modules=None):
         """
         @param name: the name of this ground station
         @type name: L{str}
@@ -32,7 +32,7 @@ class GroundStation(Element):
         @param capacity: the capacity for modules
         @type capacity: L{int}
         @param modules: the set of modules
-        @type modules: L{set}
+        @type modules: L{list}
         """
         if name is not None:
             Element.__init__(self, name=name, cost=cost,

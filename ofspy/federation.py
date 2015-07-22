@@ -24,7 +24,7 @@ from .entity import Entity
 from .operations import Operations
 
 class Federation(Entity):
-    def __init__(self, name=None, federates=[], operations=Operations()):
+    def __init__(self, name=None, federates=None, operations=Operations()):
         """
         @param name: the name of this federation
         @type name: L{str}
@@ -37,7 +37,11 @@ class Federation(Entity):
             Entity.__init__(self, name=name)
         else:
             Entity.__init__(self)
-        self.federates = federates
+        if federates is None:
+            self._initFederates = []
+        else:
+            self._initFederates = federates
+        self.federates = self._initFederates
         self.operations = operations
     
     def join(self, federate):
@@ -186,6 +190,7 @@ class Federation(Entity):
         @param sim: the simulator
         """
         super(Federation, self).init(sim)
+        self.federates = self._initFederates
         for federate in self.federates:
             federate.init(sim)
     

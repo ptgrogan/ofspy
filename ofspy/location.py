@@ -46,3 +46,9 @@ class Location(object):
         @return: L{bool}
         """
         return False
+    
+    def __str__(self):
+        """
+        Gets the string representation for this lcation.
+        """
+        return self.name

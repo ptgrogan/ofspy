@@ -23,7 +23,7 @@ import logging
 from .entity import Entity
 
 class Element(Entity):
-    def __init__(self, name=None, cost=0, capacity=0, modules=[]):
+    def __init__(self, name=None, cost=0, capacity=0, modules=None):
         """
         @param name: the name of this element
         @type name: L{str}
@@ -34,7 +34,7 @@ class Element(Entity):
         @param capacity: the capacity for modules
         @type capacity: L{int}
         @param modules: the set of modules
-        @type modules: L{set}
+        @type modules: L{list}
         """
         if name is not None:
             Entity.__init__(self, name=name)
@@ -45,7 +45,11 @@ class Element(Entity):
         self._nextLocation = None
         self.cost = cost
         self.capacity = capacity
-        self.modules = modules
+        if modules is None:
+            self._initModules = []
+        else:
+            self._initModules = modules
+        self.modules = self._initModules
     
     def getContentsSize(self):
         """
@@ -466,10 +470,10 @@ class Element(Entity):
         data = demand.generateData()
         if self.isCommissioned() \
                 and self.couldSense(data):
-            return self.canStore(data) \
-                    and any(m.isSensor()
-                            and m.canSense(self.location, demand)
-                            for m in self.modules)
+            return (any(m.isSensor()
+                       and m.canSense(self.location, demand)
+                       for m in self.modules)
+                    and self.canStore(data))
         return False
         
     def senseAndStore(self, contract):
@@ -607,6 +611,7 @@ class Element(Entity):
         """
         super(Element, self).init(sim)
         self.location = self._initLocation
+        self.modules = self._initModules
         for module in self.modules:
             module.init(sim)
     

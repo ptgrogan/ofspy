@@ -25,9 +25,15 @@ class Data(object):
         @type phenomenon: L{str}
         @param size: the size of this data
         @type size: L{int}
-        @param contractId: the contract for this data
-        @type contractId: L{str}
+        @param contract: the contract for this data
+        @type contract: L{str}
         """
         self.phenomenon = phenomenon
         self.size = size
         self.contract = contract
+    
+    def __str__(self):
+        """
+        Gets the string representation of this data.
+        """
+        return 'd{0}'.format(self.contract)
