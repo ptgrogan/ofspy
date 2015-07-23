@@ -279,6 +279,7 @@ class Game(object):
                 planningHorizon = 6
                 storagePenalty = -10
                 islPenalty = -10
+                if re.match('d(\d+,(?:a|\d+),\d+)', ops):
                     args = re.search('(\d+,(?:a|\d+),\d+)',
                                      ops).group(0).split(',')
                     planningHorizon = int(args[0])
@@ -305,6 +306,7 @@ class Game(object):
             planningHorizon = 6
             storagePenalty = -10
             islPenalty = -10
+            if re.match('d\d+,(?:a|\d+),\d+', fops):
                 args = re.search('(\d+,(?:a|\d+),\d+)',
                                  fops).group(0).split(',')
                 planningHorizon = int(args[0])
@@ -326,6 +328,7 @@ class Game(object):
             islPenalty = -10
             costSGL = 50
             costISL = 20
+            if re.match('x\d+,\d+,\d+,(?:a|\d+),\d+',fops) is not None:
                 args = re.search('(\d+,\d+,\d+,(?:a|\d+),\d+)',
                                  fops).group(0).split(',')
                 costSGL = int(args[0])
@@ -336,6 +339,7 @@ class Game(object):
                 else:
                     storagePenalty = -1*int(args[3])
                 islPenalty = -1*int(args[4])
+            elif re.match('x\d+,\d+,\d+', fops):
                 args = re.search('(\d+,\d+,\d+)',
                                  fops).group(0).split(',')
                 costSGL = int(args[0])
