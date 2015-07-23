@@ -30,10 +30,7 @@ class Module(Entity):
         @param capacity: the data capacity of this module
         @type capacity: L{int}
         """
-        if name is not None:
-            Entity.__init__(self, name=name)
-        else:
-            Entity.__init__(self)
+        Entity.__init__(self, name=name)
         self.cost = cost
         self.size = size
         self.capacity = capacity
@@ -88,8 +85,8 @@ class Module(Entity):
         """
         if self.canExchange(data, module):
             otherData = next(d for d in module.data
-                             if module.canTransferOut(d) \
-                                    and self.couldTransferIn(d))
+                             if module.canTransferOut(d)
+                             and self.couldTransferIn(d))
             if self.transferOut(data) \
                     and module.transferOut(otherData) \
                     and self.transferIn(otherData) \

@@ -108,8 +108,7 @@ class LinearProgramTestCase(unittest.TestCase):
         j.add('y', 0.2)
         lp.setObjective(j, False)
         lp.solve()
-        self.assertAlmostEqual(lp.solution[0][0], 0)
-        self.assertAlmostEqual(lp.solution[0][1], 1)
+        self.assertAlmostEqual(lp.solution[0], 0)
         self.assertAlmostEqual(lp.solution[1], 1)
     def test_get(self):
         lp = LinearProgram()
@@ -126,5 +125,4 @@ class LinearProgramTestCase(unittest.TestCase):
         code, description = lp.solve()
         self.assertAlmostEqual(lp.get('x'), 0)
         self.assertAlmostEqual(lp.get('y'), 1)
-        self.assertAlmostEqual(lp.getValue(), 1)
     

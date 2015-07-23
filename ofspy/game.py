@@ -31,14 +31,15 @@ from .federation import Federation
 from .federate import Federate
 from .operations import Operations
 from .operations import DynamicOperations
-from .groundStation import GroundStation
-from .satellite import Satellite
+from .operations import FixedCostDynamicOperations
 
 from .storage import Storage
 from .sensor import Sensor
 from .defense import Defense
 from .interSatelliteLink import InterSatelliteLink
 from .spaceGroundLink import SpaceGroundLink
+from .groundStation import GroundStation
+from .satellite import Satellite
 
 class Game(object):
     """
@@ -273,34 +274,83 @@ class Game(object):
                     logging.warning('Cannot interpret event type {0}'.format(eType))
         federates = []
         for i in range(self.numPlayers):
+            operations = None
             if re.match('d', ops):
                 planningHorizon = 6
                 storagePenalty = -10
                 islPenalty = -10
-                result = re.search('(\d+,(?:a|\d+),\d+)', ops)
-                if result:
-                    args = result.group(0).split(',')
+                    args = re.search('(\d+,(?:a|\d+),\d+)',
+                                     ops).group(0).split(',')
                     planningHorizon = int(args[0])
                     if args[1]== 'a':
                         storagePenalty = None
                     else:
                         storagePenalty = -1*int(args[1])
                     islPenalty = -1*int(args[2])
-                result = re.search('(\d+)', ops)
-                if result:
-                    planningHorizon = int(result.group(0))
-                operations = DynamicOperations(planningHorizon=planningHorizon,
-                                               storagePenalty=storagePenalty,
-                                               islPenalty=islPenalty)
+                elif re.match('(\d)', ops):
+                    planningHorizon = int(re.search(
+                        '(\d+)', ops).group(0))
+                operations = DynamicOperations(
+                    planningHorizon=planningHorizon,
+                    storagePenalty=storagePenalty,
+                    islPenalty=islPenalty)
             else:
                 operations = Operations()
             federates.append(Federate(name='P{0}'.format(i+1),
                                     initialCash=self.initialCash,
                                     operations=operations,
                                     elements=[]))
-        fedOps = Operations()
-        # TODO configure fed operations
-        federation = Federation(name='FSS', federates=federates, operations=fedOps)
+        foperations = None
+        if re.match('d', fops):
+            planningHorizon = 6
+            storagePenalty = -10
+            islPenalty = -10
+                args = re.search('(\d+,(?:a|\d+),\d+)',
+                                 fops).group(0).split(',')
+                planningHorizon = int(args[0])
+                if args[1]== 'a':
+                    storagePenalty = None
+                else:
+                    storagePenalty = -1*int(args[1])
+                islPenalty = -1*int(args[2])
+            elif re.match('(\d)', fops):
+                planningHorizon = int(re.search(
+                    '(\d+)', fops).group(0))
+            foperations = DynamicOperations(
+                planningHorizon=planningHorizon,
+                storagePenalty=storagePenalty,
+                islPenalty=islPenalty)
+        elif re.match('x', fops):
+            planningHorizon = 6
+            storagePenalty = -10
+            islPenalty = -10
+            costSGL = 50
+            costISL = 20
+                args = re.search('(\d+,\d+,\d+,(?:a|\d+),\d+)',
+                                 fops).group(0).split(',')
+                costSGL = int(args[0])
+                costISL = int(args[1])
+                planningHorizon = int(args[2])
+                if args[3]== 'a':
+                    storagePenalty = None
+                else:
+                    storagePenalty = -1*int(args[3])
+                islPenalty = -1*int(args[4])
+                args = re.search('(\d+,\d+,\d+)',
+                                 fops).group(0).split(',')
+                costSGL = int(args[0])
+                costISL = int(args[1])
+                planningHorizon = int(args[2])
+            foperations = FixedCostDynamicOperations(
+                planningHorizon=planningHorizon,
+                storagePenalty=storagePenalty,
+                islPenalty=islPenalty,
+                costSGL=costSGL, costISL=costISL)
+        else:
+            foperations = Operations()
+        federation = Federation(name='FSS',
+                                federates=federates,
+                                operations=foperations)
         
         return Context(locations=locations, events=events,
                        federations=[federation], seed=seed)

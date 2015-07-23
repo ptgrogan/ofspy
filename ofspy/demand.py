@@ -41,10 +41,7 @@ class Demand(Event):
         @param name: the name of this demand
         @type name: L{str}
         """
-        if name is not None:
-            Event.__init__(self, sector, name=name)
-        else:
-            Event.__init__(self, sector)
+        Event.__init__(self, sector, name=name)
         self.phenomenon = phenomenon
         self.size = size
         self.valueSchedule = valueSchedule

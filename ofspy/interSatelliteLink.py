@@ -39,18 +39,11 @@ class InterSatelliteLink(Transceiver):
         @param maxReceived: the max data received by this inter-satellite link each turn
         @type maxReceived: L{int}
         """
-        if name is not None:
-            Transceiver.__init__(self, name=name, cost=cost,
-                                 size=size, capacity=capacity,
-                                 protocol=protocol,
-                                 maxTransmitted=maxTransmitted,
-                                 maxReceived=maxReceived)
-        else:
-            Transceiver.__init__(self, cost=cost,
-                                 size=size, capacity=capacity,
-                                 protocol=protocol,
-                                 maxTransmitted=maxTransmitted,
-                                 maxReceived=maxReceived)
+        Transceiver.__init__(self, name=name, cost=cost,
+                             size=size, capacity=capacity,
+                             protocol=protocol,
+                             maxTransmitted=maxTransmitted,
+                             maxReceived=maxReceived)
     
     def couldTransmit(self, data, receiver, txLocation, rxLocation):
         """

@@ -28,10 +28,7 @@ class Surface(Location):
         @param name: the name of this surface location
         @type name: L{str}
         """
-        if name is not None:
-            Location.__init__(self, sector, name=name)
-        else:
-            Location.__init__(self, sector)
+        Location.__init__(self, sector, name=name)
         
     def isSurface(self):
         """

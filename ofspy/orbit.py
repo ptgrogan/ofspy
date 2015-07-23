@@ -30,10 +30,7 @@ class Orbit(Location):
         @param name: the name of this orbit location
         @type name: L{str}
         """
-        if name is not None:
-            Location.__init__(self, sector, name)
-        else:
-            Location.__init__(self, sector)
+        Location.__init__(self, sector, name)
         self.altitude = altitude
         
     def isOrbit(self):

@@ -21,8 +21,10 @@ Defense class.
 from .module import Module
 
 class Defense(Module):
-    def __init__(self, cost=0, size=1):
+    def __init__(self, name=None, cost=0, size=1):
         """
+        @param name: the name of this defense module
+        @type name: L{str}
         @param cost: the cost of this defense module
         @type cost: L{float}
         @param size: the size of this defense module
@@ -30,7 +32,7 @@ class Defense(Module):
         @param capacity: the data capacity of this defense module
         @type capacity: L{int}
         """
-        Module.__init__(self, cost, size, capacity=0)
+        Module.__init__(self, name=name, cost=cost, size=size, capacity=0)
         
     def isDefense(self):
         """

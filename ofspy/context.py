@@ -88,6 +88,100 @@ class Context(Entity):
                                         + distance) % len(path)), None)
         return location
     
+    def getElementOwner(self, element):
+        """
+        Gets the element owner in this context.
+        @param element: the element
+        @type element: L{Element}
+        @param federation: the federation
+        @type federation: L{Federation}
+        @return L{Federate}
+        """
+        return next((federate for federation in self.federations
+                     for federate in federation.federates
+                     if element in federate.elements), None)
+    def getContractOwner(self, contract):
+        """
+        Gets the contract owner in this context.
+        @param contract: the contract
+        @type contract: L{Contract}
+        @param federation: the federation
+        @type federation: L{Federation}
+        @return L{Federate}
+        """
+        return next((federate for federation in self.federations
+                     for federate in federation.federates
+                     if contract in federate.contracts), None)
+    
+    def getDemandOwner(self, demand):
+        """
+        Gets the demand owner in this context.
+        @param demand: the demand
+        @type demand: L{Demand}
+        @param federation: the federation
+        @type federation: L{Federation}
+        @return L{Federate}
+        """
+        return next((federate for federation in self.federations
+                     for federate in federation.federates
+                     if any(contract.demand is demand
+                            for contract in federate.contracts)), None)
+    
+    def getData(self, contract):
+        """
+        Gets the data for a contract.
+        @param contract: the contract
+        @type contract: L{Contract}
+        @return: L{Data}
+        """
+        return next((data for federation in self.federations
+                     for federate in federation.federates
+                     for element in federate.elements
+                     for module in element.modules
+                     for data in module.data
+                     if data.contract is contract), None)
+    
+    def getContract(self, demand):
+        """
+        Gets the contract for a demand.
+        @param demand: the demand
+        @type demand: L{Demand}
+        @return: L{Contract}
+        """
+        return next((contract for federation in self.federations
+                     for federate in federation.federates
+                     for contract in federate.contracts
+                     if contract.demand is demand), None)
+    
+    def getDataLocation(self, contract):
+        """
+        Gets the location of data for a contract.
+        @param contract: the contract
+        @type contract: L{Contract}
+        @return: L{Location}
+        """
+        return next((element.location
+                     for federation in self.federations
+                     for federate in federation.federates
+                     for element in federate.elements
+                     if any(any(d.contract is contract
+                                for d in module.data)
+                            for module in element.modules)), None)
+    
+    def getDataElement(self, contract):
+        """
+        Gets the element containing data for a contract.
+        @param contract: the contract
+        @type contract: L{Contract}
+        @return: L{Element}
+        """
+        return next((element for federation in self.federations
+                     for federate in federation.federates
+                     for element in federate.elements
+                     if any(data.contract is contract
+                            for module in element.modules
+                            for data in module.data)), None)
+    
     def init(self, sim):
         """
         Initializes this context in a simulation.
@@ -135,10 +229,10 @@ class Context(Entity):
                          for federate in federation.federates]:
             # default any failed contracts
             for contract in federate.contracts[:]:
-                if contract.isDefaulted(federate.getDataLocation(contract)):
+                if contract.isDefaulted(self.getDataLocation(contract)):
                     logging.warning('Auto-defaulting {0} for {1}'
                                 .format(contract.name, federate.name))
-                    federate.default(contract, self)
+                    federate.resolve(contract, self)
             # liquidate bankrupt federates
             if federate.cash < 0:
                 federate.liquidate(self)
@@ -211,12 +305,12 @@ class Context(Entity):
         logging.info('Commence operations for time {0}'.format(self.time))
         federates = [federate for federation in self.federations
                          for federate in federation.federates]
-        random.shuffle(federates, random=self.shuffleStream.random)
+        random.shuffle(federates, random=self.orderStream.random)
         for federate in federates:
             federate.operations.execute(federate, self)
         
         federations = self.federations[:]
-        random.shuffle(federations, random=self.shuffleStream.random)
+        random.shuffle(federations, random=self.orderStream.random)
         for federation in federations:
             federation.operations.execute(federation, self)
         

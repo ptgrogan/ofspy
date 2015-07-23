@@ -20,10 +20,10 @@ Federation class.
 
 import logging
 
-from .entity import Entity
+from .controller import Controller
 from .operations import Operations
 
-class Federation(Entity):
+class Federation(Controller):
     def __init__(self, name=None, federates=None, operations=Operations()):
         """
         @param name: the name of this federation
@@ -33,16 +33,36 @@ class Federation(Entity):
         @param operations: the operations model of this federation
         @type operations: L{Operations}
         """
-        if name is not None:
-            Entity.__init__(self, name=name)
-        else:
-            Entity.__init__(self)
+        Controller.__init__(self, name=name)
         if federates is None:
             self._initFederates = []
         else:
             self._initFederates = federates
         self.federates = self._initFederates
         self.operations = operations
+    
+    def getElements(self):
+        """
+        Gets the elements controlled by this federation.
+        @return L{list}
+        """
+        return [element for federate in self.federates
+                for element in federate.elements]
+    
+    def getFederates(self):
+        """
+        Gets the federates controlled by this federation.
+        @return L{list}
+        """
+        return self.federates[:]
+    
+    def getContracts(self):
+        """
+        Gets the contracts controlled by this federation.
+        @return L{list}
+        """
+        return [contract for federate in self.federates
+                for contract in federate.contracts]
     
     def join(self, federate):
         """
@@ -76,112 +96,6 @@ class Federation(Entity):
             logging.info('{0} quit {1}'
                          .format(federate.name, self.name))
             return True
-        return False
-    
-    def canSense(self, demand, element, context):
-        """
-        Checks if this federation can sense a demand.
-        @param demand: the demand to sense
-        @type demand: L{Demand}
-        @param element: the element to sense
-        @type element: L{Element}
-        @param context: the context
-        @type context: L{Context}
-        @return: L{bool}
-        """
-        if element not in [element for element in federate.elements
-                           for federate in self.federates]:
-            logging.warning('{0} does not control {1}.'
-                        .format(self.name, element.name))
-        elif (canContract(demand, context)
-              or any(c.demand is demand for c in self.contracts)):
-            return element.canSense(demand)
-        return False
-    
-    def senseAndStore(self, contract, element, context):
-        """
-        Senses and stores data for a contract.
-        @param contract: the contract to sense and store
-        @type contract: L{Demand}
-        @param element: the element to sense
-        @type element: L{Element}
-        @param context: the context
-        @type context: L{Context}
-        @return: L{bool}
-        """
-        if contract not in [contract for contract in federate.contracts
-                           for federate in self.federates]:
-            logging.warning('{0} does not control {1}.'
-                        .format(self.name, contract.name))
-        elif (self.canSense(contract.demand, element, context)
-              and element.senseAndStore(contract)):
-            logging.info('{0} sensed and stored data for {1} using {2}'
-                        .format(self.name, contract.name, element.name))
-            return True
-        else:
-            logging.warning('{0} could not sense and store data for {1} using {2}'
-                        .format(self.name, contract.name, element.name))
-        return False
-    
-    def canTransport(self, protocol, data, txElement, rxElement):
-        """
-        Checks if this federate can transport data between elements.
-        @param protocol: the transmission protocol
-        @type protocol: L{str}
-        @param data: the data to transport
-        @type data: L{Data}
-        @param txElement: the transmitting element
-        @type txElement: L{Element}
-        @param rxElement: the receiving element
-        @type rxElement: L{Element}
-        @return: L{bool}
-        """
-        if txElement not in [element for element in federate.elements
-                             for federate in self.federates]:
-            logging.warning('{0} does not control {1}.'
-                        .format(self.name, txElement.name))
-        elif rxElement not in [element for element in federate.elements
-                             for federate in self.federates]:
-            logging.warning('{0} does not control {1}.'
-                        .format(self.name, rxElement.name))
-        elif ('p' in protocol
-              and next((federate for federate in self.federates
-                        if txElement in federate.elements), None)
-              is not next((federate for federate in self.federates
-                           if rxElement in federate.elements), None)):
-            logging.warning('{0} cannot transport from {1} to {2} with proprietary {3}.'
-                          .format(self.name, txElement.name, rxElement.name, protocol))
-        else:
-            return (txElement.canTransmit(protocol, data, rxElement)
-                    and rxElement.canReceive(protocol, data, txElement))
-    
-    def transport(self, protocol, data, txElement, rxElement):
-        """
-        Transports data between elements.
-        @param protocol: the transmission protocol
-        @type protocol: L{str}
-        @param data: the data to transport
-        @type data: L{Data}
-        @param txElement: the transmitting element
-        @type txElement: L{Element}
-        @param rxElement: the receiving element
-        @type rxElement: L{Element}
-        @return: L{bool}
-        """
-        if canTransport(protocol, data, txElement, rxElement):
-            if not txElement.transmit(protocol, data, rxElement):
-                logging.warning('{0} could not transmit data to {1} with {2}'
-                             .format(txElement.name, rxElement.name, prototcol))
-            elif not rxElement.transmit(protocol, data, txElement):
-                logging.warning('{0} could not receive data from {1} with {2}'
-                             .format(rxElement.name, txElement.name, prototcol))
-            else:
-                logging.info('{0} transported data from {1} to {2} with {3}'
-                            .format(self.name, txElement.name, rxElement.name, protocol))
-                return True
-        else:
-            logging.warning('{0} could not transport data between {1} and {2} with {3}'
-                         .format(self.name, txElement.name, rxElement.name, prototcol))
         return False
 
     def init(self, sim):

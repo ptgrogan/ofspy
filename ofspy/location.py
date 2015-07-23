@@ -21,7 +21,7 @@ Location class.
 import uuid
 
 class Location(object):
-    def __init__(self, sector, name=uuid.uuid4):
+    def __init__(self, sector, name=None):
         """
         @param sector: the sector of this location
         @type sector: L{int}
@@ -29,7 +29,10 @@ class Location(object):
         @type name: L{str}
         """
         self.sector = sector
-        self.name = name
+        if name is None:
+            self.name = uuid.uuid4
+        else:
+            self.name = name
         
     def isSurface(self):
         """

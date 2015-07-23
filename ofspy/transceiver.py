@@ -39,12 +39,8 @@ class Transceiver(Module):
         @param maxReceived: the max data received by this transceiver each turn
         @type maxReceived: L{int}
         """
-        if name is not None:
-            Module.__init__(self, name=name, cost=cost,
-                            size=size, capacity=capacity)
-        else:
-            Module.__init__(self, cost=cost,
-                            size=size, capacity=capacity)
+        Module.__init__(self, name=name, cost=cost,
+                        size=size, capacity=capacity)
         self.protocol = protocol
         self.maxTransmitted = maxTransmitted
         self.maxReceived = maxReceived

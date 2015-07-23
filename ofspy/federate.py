@@ -20,11 +20,11 @@ Federate class.
 
 import logging
 
-from .entity import Entity
+from .controller import Controller
 from .contract import Contract
 from .operations import Operations
 
-class Federate(Entity):
+class Federate(Controller):
     def __init__(self, name=None, initialCash=0, elements=None,
                  contracts=None, operations=Operations()):
         """
@@ -39,10 +39,7 @@ class Federate(Entity):
         @param operations: the operations model of this federate
         @type operations: L{Operations}
         """
-        if name is not None:
-            Entity.__init__(self, name=name)
-        else:
-            Entity.__init__(self)
+        Controller.__init__(self, name=name)
         self.initialCash = initialCash
         self.cash = self.initialCash
         if elements is None:
@@ -56,6 +53,27 @@ class Federate(Entity):
             self._initContracts = contracts
         self.contracts = self._initContracts
         self.operations = operations
+    
+    def getElements(self):
+        """
+        Gets the elements controlled by this controller.
+        @return L{list}
+        """
+        return self.elements[:]
+    
+    def getFederates(self):
+        """
+        Gets the federates controlled by this controller.
+        @return L{list}
+        """
+        return [self]
+    
+    def getContracts(self):
+        """
+        Gets the contracts controlled by this controller.
+        @return L{list}
+        """
+        return self.contracts[:]
     
     def design(self, element):
         """
@@ -90,7 +108,7 @@ class Federate(Entity):
         @type context: L{Context}
         @return: L{bool}
         """
-        if element not in self.elements:
+        if element not in self.getElements():
             logging.warning('{0} does not control {1}.'
                         .format(self.name, element.name))
         elif element.getCommissionCost(location, context) > self.cash:
@@ -114,7 +132,7 @@ class Federate(Entity):
         @type element: L{Element}
         @return: L{bool}
         """
-        if element not in self.elements:
+        if element not in self.getElements():
             logging.info('{0} could not decommission {1}.'.format(
                 self.name, element.name))
         else:
@@ -124,26 +142,6 @@ class Federate(Entity):
                 self.name, element.name, element.getDecommissionValue()))
             return True
         return False
-    
-    def liquidate(self, context):
-        """
-        Liquidates all assets for this federate.
-        """
-        for element in self.elements[:]:
-            self.decommission(element)
-        for contract in self.contracts[:]:
-            self.resolve(contract, context)
-    
-    def canContract(self, demand, context):
-        """
-        Checks if this federate can contract a demand.
-        @param demand: the demand to contract
-        @type demand: L{Demand}
-        @param context: the context
-        @type context: L{Context}
-        @return: L{bool}
-        """
-        return (demand in context.currentEvents)
         
     def contract(self, demand, context):
         """
@@ -165,186 +163,7 @@ class Federate(Entity):
             logging.warning('{0} could not contract for {1}'
                         .format(self.name, demand.name))
         return None
-    
-    def canSense(self, demand, element, context):
-        """
-        Checks if this federate can sense a demand.
-        @param demand: the demand to sense
-        @type demand: L{Demand}
-        @param element: the element to sense
-        @type element: L{Element}
-        @param context: the context
-        @type context: L{Context}
-        @return: L{bool}
-        """
-        if element not in self.elements:
-            logging.warning('{0} does not control {1}.'
-                        .format(self.name, element.name))
-        elif (self.canContract(demand, context)
-              or any(c.demand is demand for c in self.contracts)):
-            return element.canSense(demand)
-        return False
-    
-    def senseAndStore(self, contract, element, context):
-        """
-        Senses and stores data for a contract.
-        @param contract: the contract to sense and store
-        @type contract: L{Demand}
-        @param element: the element to sense
-        @type element: L{Element}
-        @param context: the context
-        @type context: L{Context}
-        @return: L{bool}
-        """
-        if contract not in self.contracts:
-            logging.warning('{0} does not control {1}.'
-                        .format(self.name, contract.name))
-        elif (self.canSense(contract.demand, element, context)
-              and element.senseAndStore(contract)):
-            logging.info('{0} sensed and stored data for {1} using {2}'
-                        .format(self.name, contract.name, element.name))
-            return True
-        else:
-            logging.warning('{0} could not sense and store data for {1} using {2}'
-                        .format(self.name, contract.name, element.name))
-        return False
-    
-    def canTransport(self, protocol, data, txElement, rxElement):
-        """
-        Checks if this federate can transport data between elements.
-        @param protocol: the transmission protocol
-        @type protocol: L{str}
-        @param data: the data to transport
-        @type data: L{Data}
-        @param txElement: the transmitting element
-        @type txElement: L{Element}
-        @param rxElement: the receiving element
-        @type rxElement: L{Element}
-        @return: L{bool}
-        """
-        if txElement not in self.elements:
-            logging.warning('{0} does not control {1}.'
-                        .format(self.name, txElement.name))
-        elif rxElement not in self.elements:
-            logging.warning('{0} does not control {1}.'
-                        .format(self.name, rxElement.name))
-        else:
-            return (txElement.canTransmit(protocol, data, rxElement)
-                    and rxElement.canReceive(protocol, data, txElement))
-    
-    def transport(self, protocol, data, txElement, rxElement):
-        """
-        Transports data between elements.
-        @param protocol: the transmission protocol
-        @type protocol: L{str}
-        @param data: the data to transport
-        @type data: L{Data}
-        @param txElement: the transmitting element
-        @type txElement: L{Element}
-        @param rxElement: the receiving element
-        @type rxElement: L{Element}
-        @return: L{bool}
-        """
-        if self.canTransport(protocol, data, txElement, rxElement):
-            if not txElement.transmit(protocol, data, rxElement):
-                logging.warning('{0} could not transmit data to {1} with {2}'
-                             .format(txElement.name, rxElement.name, protocol))
-            elif not rxElement.receive(protocol, data, txElement):
-                logging.warning('{0} could not receive data from {1} with {2}'
-                             .format(rxElement.name, txElement.name, protocol))
-            else:
-                logging.info('{0} transported data from {1} to {2} with {3}'
-                            .format(self.name, txElement.name, rxElement.name, protocol))
-                return True
-        else:
-            logging.warning('{0} could not transport data between {1} and {2} with {3}'
-                         .format(self.name, txElement.name, rxElement.name, protocol))
-        return False
-    
-    def default(self, contract, context):
-        """
-        Defaults on a contract.
-        @param contract: the transmission protocol
-        @type contract: L{Contract}
-        @param context: the context
-        @type context: L{Context}
-        @return: L{bool}
-        """
-        if contract not in self.contracts:
-            logging.warning('{0} does not own {1}.'
-                        .format(self.name, contract.name))
-        else:
-            self.cash += contract.demand.getDefaultValue()
-            self.deleteData(contract)
-            self.contracts.remove(contract)
-            context.pastEvents.append(contract.demand)
-            logging.info('{0} defaulted on {1} for {2} penalty'
-                        .format(self.name, contract.name,
-                                contract.demand.getDefaultValue()))
-            return True
-        return False
-    
-    def deleteData(self, contract):
-        """
-        Deletes data for a contract.
-        @param contract: the contract
-        @type contract: L{Contract}
-        """
-        for element in self.elements:
-            for module in element.modules:
-                for d in module.data[:]:
-                    if d.contract is contract:
-                        module.data.remove(d)
-                        return True
-        return False
-    
-    def getDataLocation(self, contract):
-        """
-        Gets the location of data for a contract.
-        @param contract: the contract
-        @type contract: L{Contract}
-        @return: L{Location}
-        """
-        return next((element.location
-                     for element in self.elements
-                     if any(any(d.contract is contract
-                                for d in module.data)
-                            for module in element.modules)), None)
-    
-    def getDataElement(self, contract):
-        """
-        Gets the element containing data for a contract.
-        @param contract: the contract
-        @type contract: L{Contract}
-        @return: L{Element}
-        """
-        return next((element for element in self.elements
-                     if any(d.contract is contract
-                            for m in element.modules
-                            for d in m.data)), None)
-    
-    def getData(self, contract):
-        """
-        Gets the data for a contract.
-        @param contract: the contract
-        @type contract: L{Contract}
-        @return: L{Data}
-        """
-        return next((d for e in self.elements
-                     for m in e.modules
-                     for d in m.data
-                     if d.contract is contract), None)
-    
-    def getContract(self, demand):
-        """
-        Gets the contract for a demand.
-        @param demand: the demand
-        @type demand: L{Demand}
-        @return: L{Contract}
-        """
-        return next((contract for contract in self.contracts
-                    if contract.demand is demand), None)
-    
+        
     def resolve(self, contract, context):
         """
         Resolves a contract.
@@ -357,12 +176,12 @@ class Federate(Entity):
         if contract not in self.contracts:
             logging.warning('{0} does not own {1}.'
                         .format(self.name, contract.name))
-        elif contract.isCompleted(self.getDataLocation(contract)):
+        else:
             self.cash += contract.getValue()
             self.deleteData(contract)
             self.contracts.remove(contract)
             context.pastEvents.append(contract.demand)
-            logging.info('{0} completed {1} for {2} reward'
+            logging.info('{0} resolved {1} for {2} cash'
                         .format(self.name, contract.name,
                                 contract.getValue()))
             return True

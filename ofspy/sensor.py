@@ -37,12 +37,8 @@ class Sensor(Storage):
         @param maxSensed: the max data sensed by this sensor each turn
         @type maxSensed: L{int}
         """
-        if name is not None:
-            Storage.__init__(self, name=name, cost=cost,
-                             size=size, capacity=capacity)
-        else:
-            Storage.__init__(self, cost=cost,
-                             size=size, capacity=capacity)
+        Storage.__init__(self, name=name, cost=cost,
+                         size=size, capacity=capacity)
         self.phenomenon = phenomenon
         self.maxSensed = maxSensed
         self._initSensed = 0

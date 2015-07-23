@@ -23,6 +23,7 @@ import logging
 
 #logging.disable(logging.WARNING)
 
+from ..contract import Contract
 from ..context import Context
 from ..game import Game
 from ..simulator import Simulator
@@ -110,6 +111,10 @@ class FederateLiquidateTestCase(FederateTestCase):
 class FederateCanContractTestCase(FederateTestCase):
     def test_canContract(self):
         self.sim.init()
+        self.fed.design(self.sat2)
+        self.fed.commission(self.sat2,
+                            self.context.locations[1],
+                            self.context)
         self.sim.advance()
         event = next(e for e in self.context.currentEvents
                      if e.name == "VIS2.13")
@@ -120,6 +125,10 @@ class FederateCanContractTestCase(FederateTestCase):
 class FederateContractTestCase(FederateTestCase):
     def test_contract(self):
         self.sim.init()
+        self.fed.design(self.sat2)
+        self.fed.commission(self.sat2,
+                            self.context.locations[1],
+                            self.context)
         self.sim.advance()
         event = next(e for e in self.context.currentEvents
                      if e.name == "VIS2.13")
@@ -182,8 +191,7 @@ class FederateSenseAndStoreTestCase(FederateTestCase):
         event = next(e for e in self.context.currentEvents
                      if e.name == "VIS3.7")
         self.assertFalse(self.fed.senseAndStore(
-            self.fed.contract(event, self.context),
-            self.sat2, self.context))
+            Contract(event), self.sat2, self.context))
     
 class FederateCanTransportTestCase(FederateTestCase):
     def test_canTransport(self):
@@ -265,37 +273,6 @@ class FederateTransportTestCase(FederateTestCase):
         self.assertIn(data1, self.station.modules[0].data)
         self.assertFalse(self.fed.transport('pSGL', data1, self.sat4, self.station))
         
-class FederateDefaultTestCase(FederateTestCase):
-    def test_default(self):
-        self.sim.init()
-        self.fed.design(self.station)
-        self.fed.commission(self.station,
-                            self.context.locations[0],
-                            self.context)
-        self.fed.design(self.sat2)
-        self.fed.commission(self.sat2,
-                            self.context.locations[1],
-                            self.context)
-        self.fed.design(self.sat3)
-        self.fed.commission(self.sat3,
-                            self.context.locations[1],
-                            self.context)
-        self.fed.design(self.sat4)
-        self.fed.commission(self.sat4,
-                            self.context.locations[5],
-                            self.context)
-        self.sim.advance()
-        event = next(e for e in self.context.currentEvents
-                     if e.name == "VIS2.13")
-        contract1 = self.fed.contract(event, self.context)
-        self.fed.senseAndStore(contract1, self.sat2, self.context)
-        data1 = next(d for d in self.sat2.modules[1].data if d.contract is contract1)
-        cash1 = self.fed.cash
-        self.assertTrue(self.fed.default(contract1, self.context))
-        self.assertNotIn(data1, self.sat2.modules[1].data)
-        self.assertNotIn(contract1, self.fed.contracts)
-        self.assertEqual(self.fed.cash, cash1 + contract1.demand.getDefaultValue())
-        
 class FederateDeleteDataTestCase(FederateTestCase):
     def test_deleteData(self):
         self.sim.init()
@@ -318,26 +295,6 @@ class FederateDeleteDataTestCase(FederateTestCase):
         self.assertNotIn(data1, self.sat2.modules[1].data)
         self.assertIn(contract1, self.fed.contracts)
     
-class FederateGetDataTestCase(FederateTestCase):
-    def test_getData(self):
-        self.sim.init()
-        self.fed.design(self.station)
-        self.fed.commission(self.station,
-                            self.context.locations[0],
-                            self.context)
-        self.fed.design(self.sat2)
-        self.fed.commission(self.sat2,
-                            self.context.locations[1],
-                            self.context)       
-        self.sim.advance()
-        event = next(e for e in self.context.currentEvents
-                     if e.name == "VIS2.13")
-        contract1 = self.fed.contract(event, self.context)
-        self.fed.senseAndStore(contract1, self.sat2, self.context)
-        data1 = next(d for d in self.sat2.modules[1].data
-                     if d.contract is contract1)
-        self.assertIs(self.fed.getData(contract1), data1)
-    
 class FederateContractTestCase(FederateTestCase):
     def test_getContract(self):
         self.sim.init()
@@ -353,47 +310,7 @@ class FederateContractTestCase(FederateTestCase):
         event = next(e for e in self.context.currentEvents
                      if e.name == "VIS2.13")
         contract1 = self.fed.contract(event, self.context)
-        self.assertIs(self.fed.getContract(event), contract1)
-    
-class FederateGetDataLocationTestCase(FederateTestCase):
-    def test_getDataLocation(self):
-        self.sim.init()
-        self.fed.design(self.station)
-        self.fed.commission(self.station,
-                            self.context.locations[0],
-                            self.context)
-        self.fed.design(self.sat2)
-        self.fed.commission(self.sat2,
-                            self.context.locations[1],
-                            self.context)       
-        self.sim.advance()
-        event = next(e for e in self.context.currentEvents
-                     if e.name == "VIS2.13")
-        contract1 = self.fed.contract(event, self.context)
-        self.assertIs(self.fed.getDataLocation(contract1), None)
-        self.fed.senseAndStore(contract1, self.sat2, self.context)
-        data1 = next(d for d in self.sat2.modules[1].data
-                     if d.contract is contract1)
-        self.assertEqual(self.fed.getDataLocation(contract1),
-                         self.sat2.location)
-    
-class FederateGetDataElementTestCase(FederateTestCase):
-    def test_getDataElement(self):
-        self.sim.init()
-        self.fed.design(self.station)
-        self.fed.commission(self.station,
-                            self.context.locations[0],
-                            self.context)
-        self.fed.design(self.sat2)
-        self.fed.commission(self.sat2,
-                            self.context.locations[1],
-                            self.context)       
-        self.sim.advance()
-        event = next(e for e in self.context.currentEvents
-                     if e.name == "VIS2.13")
-        contract1 = self.fed.contract(event, self.context)
-        self.fed.senseAndStore(contract1, self.sat2, self.context)
-        self.assertIs(self.fed.getDataElement(contract1), self.sat2)
+        self.assertIn(contract1, self.fed.contracts)
     
 class FederateResolveTestCase(FederateTestCase):
     def test_resolve(self):

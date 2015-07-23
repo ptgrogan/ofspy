@@ -32,12 +32,8 @@ class Storage(Module):
         @param capacity: the data capacity of this storage module
         @type capacity: L{int}
         """
-        if name is not None:
-            Module.__init__(self, name=name, cost=cost,
-                            size=size, capacity=capacity)
-        else:
-            Module.__init__(self, cost=cost,
-                            size=size, capacity=capacity)
+        Module.__init__(self, name=name, cost=cost,
+                        size=size, capacity=capacity)
     
     def couldStore(self, data):
         """

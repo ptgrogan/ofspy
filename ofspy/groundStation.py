@@ -34,12 +34,8 @@ class GroundStation(Element):
         @param modules: the set of modules
         @type modules: L{list}
         """
-        if name is not None:
-            Element.__init__(self, name=name, cost=cost,
-                             capacity=capacity, modules=modules)
-        else:
-            Element.__init__(self, cost=cost,
-                             capacity=capacity, modules=modules)
+        Element.__init__(self, name=name, cost=cost,
+                         capacity=capacity, modules=modules)
     
     def canCommission(self, location, context):
         """

@@ -21,12 +21,15 @@ Entity class.
 import uuid
 
 class Entity(object):
-    def __init__(self, name=uuid.uuid4):
+    def __init__(self, name=None):
         """
         @param name: the name of this entity
         @type sim: L{str}
         """
-        self.name = name
+        if name is None:
+            self.name = uuid.uuid4
+        else:
+            self.name = name
     
     def init(self, sim):
         """

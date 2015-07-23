@@ -36,10 +36,7 @@ class Disturbance(Event):
         @param name: the name of this disturbance
         @type name: L{str}
         """
-        if name is not None:
-            Event.__init__(self, sector, name=name)
-        else:
-            Event.__init__(self, sector)
+        Event.__init__(self, sector, name=name)
         self.hitChance = hitChance
         self.maxHits = maxHits
         

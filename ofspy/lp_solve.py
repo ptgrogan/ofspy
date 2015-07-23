@@ -90,8 +90,8 @@ class LinearProgram(object):
         
         if not lpsolve('add_column', self.lp, colValues):
             raise Exception('error adding column {}'.format(name))
-        if not lpsolve('set_col_name', self.lp, colId, name):
-            raise Exception('error setting column name {}'.format(name))
+        #if not lpsolve('set_col_name', self.lp, colId, name):
+        #    raise Exception('error setting column name {}'.format(name))
         if isInteger and not lpsolve('set_int', self.lp, colId, isInteger):
             raise Exception('error setting integer type for column {}'.format(name))
         if isBinary and not lpsolve('set_binary', self.lp, colId, isBinary):
@@ -128,8 +128,8 @@ class LinearProgram(object):
                        LinearProgram.ConstraintTypes[constraintType],
                        constant):
             raise Exception('error adding constraint {}'.format(name))
-        nRows = lpsolve('get_Nrows', self.lp)
-        lpsolve('set_row_name', self.lp, nRows, name)
+        # nRows = lpsolve('get_Nrows', self.lp)
+        # lpsolve('set_row_name', self.lp, nRows, name)
     
     def setObjective(self, row, minimize=True):
         """
@@ -160,7 +160,7 @@ class LinearProgram(object):
         """
         code = lpsolve('solve', self.lp)
         if code == 0 or code == 1 or code == 9:
-             self.solution = lpsolve('get_variables', self.lp)
+             self.solution = lpsolve('get_variables', self.lp)[0]
         return code, LinearProgram.SolveResult[str(code)]
     def get(self, column):
         """
@@ -169,16 +169,8 @@ class LinearProgram(object):
         @type column: L{str}
         @return: L{float}
         """
-        return (None if (len(self.solution) != 2
-                        or len(self.solution[0]) < self.columns[column] - 1)
-                else self.solution[0][self.columns[column] - 1])
-    def getValue(self):
-        """
-        Gets the solved objective value.
-        @return: L{float}
-        """
-        return (None if len(self.solution) != 2
-                else self.solution[1])
+        return (None if len(self.solution) < self.columns[column] - 1
+                else self.solution[self.columns[column] - 1])
     def dumpProgram(self):
         """
         Dumps the program to a string format.
@@ -187,10 +179,21 @@ class LinearProgram(object):
         string = ('minimize' if self.objective['minimize']
                   else 'maximize') + ':' + self.objective['row'].toText() + ';\n'
         for c in self.constraints:
-            string += (c['name'] + ': ' + c['row'] + ' '
-                       + LinearProgram.ConstraintText[c['constraint']]
-                       + ' ' + str(c['constant']) + ';\n')
-        return string        
+            string += '{}: {} {} {};\n'.format(
+                c['name'], c['row'],
+                LinearProgram.ConstraintText[c['constraint']],
+                c['constant'])
+        return string
+    def dumpSolution(self):
+        """
+        Dumps the solution to a string format.
+        @return: L{str}
+        """
+        string = ''
+        for col in self.columns:
+            string += '{} = {};\n'.format(
+                col, self.solution[self.columns[col]-1])
+        return string
 
 class Row(object):
     def __init__(self, clone=None):

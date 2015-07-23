@@ -36,10 +36,7 @@ class Element(Entity):
         @param modules: the set of modules
         @type modules: L{list}
         """
-        if name is not None:
-            Entity.__init__(self, name=name)
-        else:
-            Entity.__init__(self)
+        Entity.__init__(self, name=name)
         self._initLocation = None
         self.location = self._initLocation
         self._nextLocation = None
@@ -207,9 +204,11 @@ class Element(Entity):
                                     for r in rxElement.modules)
                             for t in self.modules):
                 logging.debug(
-                    '{0} transmitted data to {1} via {2}'
-                    .format(self.name, rxElement.name, protocol))
+                    '{0} transmitted {1} to {2} via {3}'
+                    .format(self.name, str(data), rxElement.name, protocol))
                 return True
+        logging.warning('{0} could not transmit {1} to {2} via {3}'
+                        .format(self.name, str(data), rxElement.name, protocol))
         return False
     
     def couldReceive(self, protocol, data, txElement, txLocation, rxLocation):
@@ -282,9 +281,11 @@ class Element(Entity):
                             for t in txElement.modules)
                     for r in self.modules):
                 logging.debug(
-                    '{0} received data from {1} via {2}'
-                    .format(self.name, txElement.name, protocol))
+                    '{0} received {1} from {2} via {3}'
+                    .format(self.name, str(data), txElement.name, protocol))
                 return True
+        logging.warning('{0} could not receive {1} from {2} via {3}'
+                        .format(self.name, str(data), txElement.name, protocol))
         return False
     
     def couldTransfer(self, data, origin, destination):
@@ -298,12 +299,12 @@ class Element(Entity):
         @type destination: L{Module}
         @return: L{bool}
         """
-        return origin in self.modules \
-                and destination in self.modules \
+        return (origin in self.modules
+                and destination in self.modules
                 and (origin is destination
                      or (origin.couldTransferOut(data)
                          and destination.couldTransferIn(data))
-                     or origin.couldExchange(data, destination))
+                     or origin.couldExchange(data, destination)))
             
     def canTransfer(self, data, origin, destination):
         """
@@ -316,13 +317,12 @@ class Element(Entity):
         @type destination: L{Module}
         @return: L{bool}
         """
-        if self.isCommissioned() \
-                and self.couldTransfer(data, origin, destination):
-            return origin is destination \
-                    or (origin.canTransferOut(data)
-                        and destination.canTransferIn(data)) \
-                    or origin.canExchange(data, destination)
-        return False
+        return (self.isCommissioned()
+                and self.couldTransfer(data, origin, destination)
+                and (origin is destination
+                     or (origin.canTransferOut(data)
+                         and destination.canTransferIn(data))
+                     or origin.canExchange(data, destination)))
                 
     def transfer(self, data, origin, destination):
         """
@@ -343,15 +343,17 @@ class Element(Entity):
                     and origin.transferOut(data) \
                     and destination.transferIn(data):
                 logging.debug(
-                    '{0} transferred data between modules'
-                    .format(self.name))
+                    '{0} transferred {1} between modules'
+                    .format(self.name, str(data)))
                 return True
             elif origin.canExchange(data, destination) \
                     and origin.exchange(data, destination):
                 logging.debug(
-                    '{0} exchanged data between modules'
-                    .format(self.name))
+                    '{0} exchanged {1} between modules'
+                    .format(self.name, str(data)))
                 return True
+        logging.warning('{0} could not transfer {1} between modules'
+                        .format(self.name, str(data)))
         return False
         
     def couldStore(self, data):
@@ -374,12 +376,13 @@ class Element(Entity):
                 and self.couldStore(data):
             container = next((m for m in self.modules
                               if data in m.data), None)
-            return ((container is None
-                     or container.isStorage()
+            return ((container is not None
+                     and container.isStorage())
+                or ((container is None
                      or container.canTransferOut(data))
                     and any(m.isStorage()
                             and m.canStore(data)
-                            for m in self.modules))
+                            for m in self.modules)))
         return False
     
     def store(self, data):
@@ -399,8 +402,8 @@ class Element(Entity):
                         and m.store(data)
                         for m in self.modules):
                     logging.debug(
-                        '{0} stored new data in a storage module'
-                        .format(self.name))
+                        '{0} stored new {1} in a storage module'
+                        .format(self.name, str(data)))
                     return True
                 elif any(m.isStorage()
                         and m.isSensor()
@@ -408,33 +411,15 @@ class Element(Entity):
                         and m.store(data)
                         for m in self.modules):
                     logging.debug(
-                        '{0} stored new data in a sensor module'
-                        .format(self.name))
+                        '{0} stored new {1} in a sensor module'
+                        .format(self.name, str(data)))
                     return True
             else:
                 if (container.isStorage()
-                    and not container.isSensor()):
-                    logging.debug(
-                        '{0} already stored data in a storage module'
-                        .format(self.name))
-                    return True
-                elif (container.isStorage()
-                      and container.isSensor()
-                      and any(m.isStorage()
-                              and not m.isSensor()
-                              and m.canStore(data)
-                              and container.transferOut(data)
-                              and m.store(data)
-                              for m in self.modules)):
-                    logging.debug(
-                        '{0} stored data in a storage module'
-                        .format(self.name))
-                    return True
-                elif (container.isStorage()
                       and container.isSensor()):
                     logging.debug(
-                        '{0} already stored data in a sensor module'
-                        .format(self.name))
+                        '{0} already stored {1} in a sensor module'
+                        .format(self.name, str(data)))
                     return True
                 elif (any(m.isStorage()
                           and m.isSensor()
@@ -443,9 +428,49 @@ class Element(Entity):
                           and m.store(data)
                           for m in self.modules)):
                     logging.debug(
-                        '{0} stored data in a sensor module'
-                        .format(self.name))
+                        '{0} stored {1} in a sensor module'
+                        .format(self.name, str(data)))
                     return True
+                elif (container.isStorage()
+                      and not container.isSensor()):
+                    logging.debug(
+                        '{0} already stored {1} in a storage module'
+                        .format(self.name, str(data)))
+                    return True
+                elif (any(m.isStorage()
+                          and not m.isSensor()
+                          and m.canStore(data)
+                          and container.transferOut(data)
+                          and m.store(data)
+                          for m in self.modules)):
+                    logging.debug(
+                        '{0} stored {1} in a storage module'
+                        .format(self.name, str(data)))
+                    return True
+        else:
+            # cannot directly store data: try to exchange
+            container = next((m for m in self.modules
+                              if data in m.data), None)
+            if (container is not None
+                and any(module.isStorage()
+                        and module.isSensor()
+                        and self.canTransfer(data, container, module)
+                        and self.transfer(data, container, module)
+                        for module in self.modules)):
+                logging.info('{0} stored {1} in a sensor module via exchange'
+                             .format(self.name, str(data)))
+                return True
+            elif (container is not None
+                and any(module.isStorage()
+                        and not module.isSensor()
+                        and self.canTransfer(data, container, module)
+                        and self.transfer(data, container, module)
+                        for module in self.modules)):
+                logging.info('{0} stored {1} in a storage module via exchange'
+                             .format(self.name, str(data)))
+                return True
+        logging.warning('{0} could not store {1}'
+                        .format(self.name, str(data)))
         return False
     
     def couldSense(self, data):
@@ -489,14 +514,17 @@ class Element(Entity):
                     and m.canSense(self.location, contract.demand)
                     and (m.canStore(data)
                          or any(any(s is not m
+                                    and s.isStorage()
                                     and s.canStore(d)
                                     and self.canTransfer(d, m, s)
-                                    and self.transfer(d, m, s))
-                                for s in self.modules)
-                         for d in m.data)
+                                    and self.transfer(d, m, s)
+                                    for s in self.modules)
+                                for d in m.data))
                     and m.senseAndStore(self.location, contract)
                     for m in self.modules):
                 return True
+        logging.warning('{0} could not sense and store {1}'
+                        .format(self.name, contract.name))
         return False
     
     def getMaxSensed(self, phenomenon=None):
