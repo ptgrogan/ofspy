@@ -126,6 +126,34 @@ class Controller(Entity):
                         .format(self.name, contract.name, element.name))
         return False
     
+    def couldTransport(self, protocol, data, txElement,
+                       rxElement, txLocation, rxLocation):
+        """
+        Checks if this controller could transport data between elements.
+        @param protocol: the transmission protocol
+        @type protocol: L{str}
+        @param data: the data to transport
+        @type data: L{Data}
+        @param txElement: the transmitting element
+        @type txElement: L{Element}
+        @param rxElement: the receiving element
+        @type rxElement: L{Element}
+        @param txLocation: the transmitting location
+        @type txLocation: L{Location}
+        @param rxLocation: the receiving location
+        @type rxLocation: L{Location}
+        @return: L{bool}
+        """
+        return (txElement.couldTransmit(protocol, data, rxElement,
+                                        txLocation, rxLocation)
+                and rxElement.couldReceive(protocol, data, txElement,
+                                           txLocation, rxLocation)
+                and ('o' in protocol
+                     or next((federate for federate in self.getFederates()
+                              if txElement in federate.elements), None)
+                     is next((federate for federate in self.getFederates()
+                              if rxElement in federate.elements), None)))
+    
     def canTransport(self, protocol, data, txElement, rxElement):
         """
         Checks if this controller can transport data between elements.
@@ -139,22 +167,17 @@ class Controller(Entity):
         @type rxElement: L{Element}
         @return: L{bool}
         """
-        if txElement not in self.getElements():
-            logging.warning('{0} does not control {1}.'
-                        .format(self.name, txElement.name))
-        elif rxElement not in self.getElements():
-            logging.warning('{0} does not control {1}.'
-                        .format(self.name, rxElement.name))
-        elif ('p' in protocol
-              and next((federate for federate in self.getFederates()
-                        if txElement in federate.elements), None)
-              is not next((federate for federate in self.getFederates()
-                           if rxElement in federate.elements), None)):
-            logging.warning('{0} cannot transport from {1} to {2} with proprietary {3}.'
-                            .format(self.name, txElement.name, rxElement.name, protocol))
-        else:
+        if self.couldTransport(protocol, data, txElement, rxElement,
+                               txElement.location, rxElement.location):
+            if txElement not in self.getElements():
+                logging.warning('{0} does not control {1}.'
+                            .format(self.name, txElement.name))
+            elif rxElement not in self.getElements():
+                logging.warning('{0} does not control {1}.'
+                            .format(self.name, rxElement.name))
             return (txElement.canTransmit(protocol, data, rxElement)
                     and rxElement.canReceive(protocol, data, txElement))
+        return False
     
     def transport(self, protocol, data, txElement, rxElement):
         """

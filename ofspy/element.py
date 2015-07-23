@@ -254,7 +254,7 @@ class Element(Entity):
                        and r.protocol == protocol
                        and any(t.isTransceiver()
                                and t.protocol == protocol
-                               and r.canTransmit(data, t, txLocation, rxLocation)
+                               and r.canReceive(data, t, txLocation, rxLocation)
                                for t in txElement.modules)
                        for r in self.modules)
         return False

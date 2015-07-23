@@ -46,7 +46,7 @@ class Contract(Entity):
         @type dataLocation: L{Location}
         @return: L{bool}
         """
-        return self.elapsedTime > self.demand.getDefaultTime() \
+        return self.demand.isDefaultedAt(self.elapsedTime) \
                 or dataLocation is None
     
     def isCompleted(self, dataLocation):

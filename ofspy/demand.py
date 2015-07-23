@@ -64,6 +64,15 @@ class Demand(Event):
         """
         return self.valueSchedule.getDefaultTime()
     
+    def isDefaultedAt(self, time):
+        """
+        Checks if this demand is defaulted at an elapsed time.
+        @param time: the time
+        @type time: L{float}
+        @return: L{bool}
+        """
+        return time > self.getDefaultTime()
+    
     def getDefaultValue(self):
         """
         Gets the defaulted value of this demand.

@@ -44,6 +44,9 @@ class Operations(object):
             demands = [e for e in context.events
                        if e.isDemand()
                        and element.couldSense(e.generateData())]
+                       #and (element.couldSense(e.generateData())
+                       #     or (any(m.isTransceiver() and m.isISL()
+                       #             for m in element.modules)))]
             values = [0]
             values.extend(map(lambda d: d.getValueAt(0), demands))
             values = list(set(values))
@@ -55,7 +58,7 @@ class Operations(object):
                                e + v*(math.pow(sum(counts[0:values.index(v)+1]), 1)
                                       - math.pow(sum(counts[0:values.index(v)]), 1))
                                / math.pow(sum(counts),1), values)
-            self.penaltyMemo[element] = -1*expValMax
+            self.penaltyMemo[element] = -1*max(1, expValMax) # minimum penalty 1
         return self.penaltyMemo[element]
 
 class DynamicOperations(Operations):
@@ -210,12 +213,12 @@ class DynamicOperations(Operations):
                                         protocol, station.name, time), True))
                                 r.add(T_d[t][i][j][k][l], demand.size)
                                 maxSize = max(maxSize, demand.size
-                                              if satellite.couldTransmit(
+                                              if controller.couldTransport(
                                                 protocol, demand.generateData(),
-                                                station, txLocation, rxLocation)
-                                              and station.couldReceive(
-                                                protocol, demand.generateData(),
-                                                satellite, txLocation, rxLocation)
+                                                satellite, station,
+                                                txLocation, rxLocation)
+                                              and not demand.isDefaultedAt(
+                                                time-context.time)
                                               else 0)
                             for l, contract in enumerate(contracts):
                                 T_c[t][i][j][k].insert(l, lp.addColumn(
@@ -224,12 +227,12 @@ class DynamicOperations(Operations):
                                         protocol, station.name, time), True))
                                 r.add(T_c[t][i][j][k][l], demand.size)
                                 maxSize = max(maxSize, demand.size
-                                              if satellite.couldTransmit(
+                                              if controller.couldTransport(
                                                 protocol, contract.demand.generateData(),
-                                                station, txLocation, rxLocation)
-                                              and station.couldReceive(
-                                                protocol, contract.demand.generateData(),
-                                                satellite, txLocation, rxLocation)
+                                                satellite, station,
+                                                txLocation, rxLocation)
+                                              and not contract.demand.isDefaultedAt(
+                                                contract.elapsedTime+time-context.time)
                                               else 0)
                             # constrain transmission by visibility
                             lp.addConstraint(r, 'LE', maxSize, '{}-{} visibility {} at {}'
@@ -286,12 +289,12 @@ class DynamicOperations(Operations):
                                 J.add(L_d[t][i][j][k][l], self.islPenalty*demand.size)
                                 r.add(L_d[t][i][j][k][l], demand.size)
                                 maxSize = max(maxSize, demand.size
-                                              if txSatellite.couldTransmit(
+                                              if controller.couldTransport(
                                                 protocol, demand.generateData(),
-                                                rxSatellite, txLocation, rxLocation)
-                                              and rxSatellite.couldReceive(
-                                                protocol, demand.generateData(),
-                                                txSatellite, txLocation, rxLocation)
+                                                txSatellite, rxSatellite,
+                                                txLocation, rxLocation)
+                                              and not demand.isDefaultedAt(
+                                                time-context.time)
                                               else 0)
                             for l, contract in enumerate(contracts):
                                 L_c[t][i][j][k].insert(l, lp.addColumn(
@@ -302,12 +305,12 @@ class DynamicOperations(Operations):
                                 J.add(L_c[t][i][j][k][l], self.islPenalty*contract.demand.size)
                                 r.add(L_c[t][i][j][k][l], demand.size)
                                 maxSize = max(maxSize, demand.size
-                                              if txSatellite.couldTransmit(
+                                              if controller.couldTransport(
                                                 protocol, contract.demand.generateData(),
-                                                rxSatellite, txLocation, rxLocation)
-                                              and rxSatellite.couldReceive(
-                                                protocol, contract.demand.generateData(),
-                                                txSatellite, txLocation, rxLocation)
+                                                txSatellite, rxSatellite,
+                                                txLocation, rxLocation)
+                                              and not contract.demand.isDefaultedAt(
+                                                contract.elapsedTime+time-context.time)
                                               else 0)
                             # constrain transmission by visibility
                             lp.addConstraint(r, 'LE', maxSize, '{}-{} visibility {} at {}'
@@ -349,21 +352,16 @@ class DynamicOperations(Operations):
                     for j, demand in enumerate(demands):
                         R_d[t][i].insert(j, lp.addColumn('{}-R-{}@{}'.format(
                             element.name, demand.name, time), True))
-                        # high penalty for defaulting on new contract
                         J.add(R_d[t][i][j], demand.getValueAt(time-context.time)
-                              if element.isGround() else -1e9)
+                              if element.isGround()
+                              else demand.getDefaultValue())
                     for j, contract in enumerate(contracts):
                         R_c[t][i].insert(j, lp.addColumn('{}-R-{}@{}'.format(
                             element.name, contract.name, time), True))
-                        if element.isGround():
-                            J.add(R_c[t][i][j], contract.demand.getValueAt(
-                                contract.elapsedTime + time-context.time))
-                        else:
-                            # high penalty for bankruptcy
-                            J.add(R_c[t][i][j], contract.demand.getDefaultValue()
-                                  if context.getContractOwner(contract).cash
-                                  + contract.demand.getDefaultValue() > 0
-                                  else -1e9)
+                        J.add(R_c[t][i][j], contract.demand.getValueAt(
+                            contract.elapsedTime + time-context.time)
+                              if element.isGround()
+                              else contract.demand.getDefaultValue())
                 for i, satellite in enumerate(satellites):
                     R_i = elements.index(satellite)
                     for j, demand in enumerate(demands):
@@ -441,15 +439,17 @@ class DynamicOperations(Operations):
             for federate in federates:
                 r = Row()
                 for j, demand in enumerate(demands):
-                    for i, element in enumerate(elements):
-                        r.add(R_d[0][i][j], (demand.getValueAt(0)
-                                             if element.isGround()
-                                             else demand.getDefaultValue()))
+                    if federate.canContract(demand, context): # TODO does not consider priority
+                        for i, element in enumerate(elements):
+                            r.add(R_d[0][i][j], (demand.getValueAt(0)
+                                                 if element.isGround()
+                                                 else demand.getDefaultValue()))
                 for j, contract in enumerate(contracts):
-                    for i, element in enumerate(elements):
-                        r.add(R_c[0][i][j], (contract.demand.getValueAt(contract.elapsedTime)
-                                             if element.isGround()
-                                             else contract.demand.getDefaultValue()))
+                    if contract in federate.contracts:
+                        for i, element in enumerate(elements):
+                            r.add(R_c[0][i][j], (contract.demand.getValueAt(contract.elapsedTime)
+                                                 if element.isGround()
+                                                 else contract.demand.getDefaultValue()))
                 lp.addConstraint(r, 'GE', -1 - federate.cash,
                                  '{} net cash must be positive'
                                  .format(federate.name))
@@ -493,7 +493,7 @@ class DynamicOperations(Operations):
                             isl_i = satellitesISL.index(satellite)
                             for k, rxSatellite in enumerate(satellitesISL):
                                 for l, protocol in enumerate(protocolsISL):
-                                    if(lp.get(L_c[0][i][k][l][j])):
+                                    if(lp.get(L_c[0][isl_i][k][l][j])):
                                         controller.transport(protocol, data,
                                                              satellite, rxSatellite)
                                         _transportContract(operations, rxSatellite,
@@ -522,7 +522,7 @@ class DynamicOperations(Operations):
                             isl_i = satellitesISL.index(satellite)
                             for k, rxSatellite in enumerate(satellitesISL):
                                 for l, protocol in enumerate(protocolsISL):
-                                    if(lp.get(L_d[0][i][k][l][j])):
+                                    if(lp.get(L_d[0][isl_i][k][l][j])):
                                         controller.transport(protocol, data,
                                                              satellite, rxSatellite)
                                         _transportDemand(operations, rxSatellite,
@@ -755,12 +755,12 @@ class FixedCostDynamicOperations(DynamicOperations):
                                               -1*self.costSGL*demand.size)
                                     r.add(T_d[t][i][j][k][l], demand.size)
                                     maxSize = max(maxSize, demand.size
-                                                  if satellite.couldTransmit(
+                                                  if controller.couldTransport(
                                                     protocol, demand.generateData(),
-                                                    station, txLocation, rxLocation)
-                                                  and station.couldReceive(
-                                                    protocol, demand.generateData(),
-                                                    satellite, txLocation, rxLocation)
+                                                    satellite, station,
+                                                    txLocation, rxLocation)
+                                                  and not demand.isDefaultedAt(
+                                                    time-context.time)
                                                   else 0)
                                 for l, contract in enumerate(ownContracts):
                                     T_c[t][i][j][k].insert(l, lp.addColumn(
@@ -772,12 +772,12 @@ class FixedCostDynamicOperations(DynamicOperations):
                                               -1*self.costSGL*contract.demand.size)
                                     r.add(T_c[t][i][j][k][l], demand.size)
                                     maxSize = max(maxSize, demand.size
-                                                  if satellite.couldTransmit(
+                                                  if controller.couldTransport(
                                                     protocol, contract.demand.generateData(),
-                                                    station, txLocation, rxLocation)
-                                                  and station.couldReceive(
-                                                    protocol, contract.demand.generateData(),
-                                                    satellite, txLocation, rxLocation)
+                                                    satellite, station,
+                                                    txLocation, rxLocation)
+                                                  and not contract.demand.isDefaultedAt(
+                                                    contract.elapsedTime + time-context.time)
                                                   else 0)
                                 # constrain transmission by visibility
                                 lp.addConstraint(r, 'LE', maxSize, '{}-{} visibility {} at {}'
@@ -847,12 +847,12 @@ class FixedCostDynamicOperations(DynamicOperations):
                                         J.add(L_d[t][i][j][k][l], self.islPenalty*demand.size)
                                     r.add(L_d[t][i][j][k][l], demand.size)
                                     maxSize = max(maxSize, demand.size
-                                                  if txSatellite.couldTransmit(
+                                                  if controller.couldTransport(
                                                     protocol, demand.generateData(),
-                                                    rxSatellite, txLocation, rxLocation)
-                                                  and rxSatellite.couldReceive(
-                                                    protocol, demand.generateData(),
-                                                    txSatellite, txLocation, rxLocation)
+                                                    txSatellite, rxSatellite,
+                                                    txLocation, rxLocation)
+                                                  and not demand.isDefaultedAt(
+                                                    time-context.time)
                                                   else 0)
                                 for l, contract in enumerate(ownContracts):
                                     L_c[t][i][j][k].insert(l, lp.addColumn(
@@ -869,12 +869,12 @@ class FixedCostDynamicOperations(DynamicOperations):
                                               self.islPenalty*contract.demand.size)
                                     r.add(L_c[t][i][j][k][l], demand.size)
                                     maxSize = max(maxSize, demand.size
-                                                  if txSatellite.couldTransmit(
+                                                  if controller.couldTransport(
                                                     protocol, contract.demand.generateData(),
-                                                    rxSatellite, txLocation, rxLocation)
-                                                  and rxSatellite.couldReceive(
-                                                    protocol, contract.demand.generateData(),
-                                                    txSatellite, txLocation, rxLocation)
+                                                    txSatellite, rxSatellite,
+                                                    txLocation, rxLocation)
+                                                  and not contract.demand.isDefaultedAt(
+                                                    contract.elapsedTime + time-context.time)
                                                   else 0)
                                 # constrain transmission by visibility
                                 lp.addConstraint(r, 'LE', maxSize, '{}-{} visibility {} at {}'
@@ -924,21 +924,16 @@ class FixedCostDynamicOperations(DynamicOperations):
                         for j, demand in enumerate(demands):
                             R_d[t][i].insert(j, lp.addColumn('{}-R-{}@{}'.format(
                                 element.name, demand.name, time), True))
-                            # high penalty for defaulting on new contract
                             J.add(R_d[t][i][j], demand.getValueAt(time-context.time)
-                                  if element.isGround() else -1e9)
+                                  if element.isGround()
+                                  else contract.demand.getDefaultValue())
                         for j, contract in enumerate(ownContracts):
                             R_c[t][i].insert(j, lp.addColumn('{}-R-{}@{}'.format(
                                 element.name, contract.name, time), True))
-                            if element.isGround():
-                                J.add(R_c[t][i][j], contract.demand.getValueAt(
-                                    contract.elapsedTime + time-context.time))
-                            else:
-                                # high penalty for bankruptcy
-                                J.add(R_c[t][i][j], contract.demand.getDefaultValue()
-                                      if context.getContractOwner(contract).cash
-                                      + contract.demand.getDefaultValue() > 0
-                                      else -1e9)
+                            J.add(R_c[t][i][j], contract.demand.getValueAt(
+                                contract.elapsedTime + time-context.time)
+                                  if element.isGround()
+                                  else contract.demand.getDefaultValue())
                     for i, satellite in enumerate(allSatellites):
                         R_i = allElements.index(satellite)
                         for j, demand in enumerate(demands):
@@ -1023,45 +1018,44 @@ class FixedCostDynamicOperations(DynamicOperations):
                             # constrain net flow of contracts at each station
                             lp.addConstraint(r, 'EQ', 0, '{} net flow {} at {}'
                                              .format(station.name, contract.name, time))
-                for f in federates:
-                    r = Row()
-                    for j, demand in enumerate(demands):
-                        for i, element in enumerate(allElements):
-                            r.add(R_d[0][i][j], (demand.getValueAt(0)
-                                                 if element.isGround()
-                                                 else demand.getDefaultValue()))
-                        for i, satellite in enumerate(allSatellites):
-                            for j, station in enumerate(allStations):
-                                for k, protocol in enumerate(protocolsSGL):
-                                    if station not in ownStations:
-                                        r.add(T_d[0][i][j][k][l],
-                                              -1*self.costSGL*demand.size)
-                        for i, txSatellite in enumerate(allSatellitesISL):
-                            for j, rxSatellite in enumerate(allSatellitesISL):
-                                for k, protocol in enumerate(protocolsISL):
-                                    if rxSatellite not in ownSatellites:
-                                        r.add(L_d[0][i][j][k][l],
-                                              -1*self.costISL*demand.size)
-                    for j, contract in enumerate(ownContracts):
-                        for i, element in enumerate(allElements):
-                            r.add(R_c[0][i][j], (contract.demand.getValueAt(contract.elapsedTime)
-                                                 if element.isGround()
-                                                 else contract.demand.getDefaultValue()))
-                        for i, satellite in enumerate(allSatellites):
-                            for j, station in enumerate(allStations):
-                                for k, protocol in enumerate(protocolsSGL):
-                                    if station not in ownStations:
-                                        r.add(T_c[0][i][j][k][l],
-                                              -1*self.costSGL*demand.size)
-                        for i, txSatellite in enumerate(allSatellitesISL):
-                            for j, rxSatellite in enumerate(allSatellitesISL):
-                                for k, protocol in enumerate(protocolsISL):
-                                    if rxSatellite not in ownSatellites:
-                                        r.add(L_c[0][i][j][k][l],
-                                              -1*self.costISL*demand.size)
-                    lp.addConstraint(r, 'GE', -1 - f.cash,
-                                     '{} net cash must be positive'
-                                     .format(federate.name))
+                r = Row()
+                for l, demand in enumerate(demands):
+                    for i, element in enumerate(allElements):
+                        r.add(R_d[0][i][l], (demand.getValueAt(0)
+                                             if element.isGround()
+                                             else demand.getDefaultValue()))
+                    for i, satellite in enumerate(allSatellites):
+                        for j, station in enumerate(allStations):
+                            for k, protocol in enumerate(protocolsSGL):
+                                if station not in ownStations:
+                                    r.add(T_d[0][i][j][k][l],
+                                          -1*self.costSGL*demand.size)
+                    for i, txSatellite in enumerate(allSatellitesISL):
+                        for j, rxSatellite in enumerate(allSatellitesISL):
+                            for k, protocol in enumerate(protocolsISL):
+                                if rxSatellite not in ownSatellites:
+                                    r.add(L_d[0][i][j][k][l],
+                                          -1*self.costISL*demand.size)
+                for l, contract in enumerate(ownContracts):
+                    for i, element in enumerate(allElements):
+                        r.add(R_c[0][i][l], (contract.demand.getValueAt(contract.elapsedTime)
+                                             if element.isGround()
+                                             else contract.demand.getDefaultValue()))
+                    for i, satellite in enumerate(allSatellites):
+                        for j, station in enumerate(allStations):
+                            for k, protocol in enumerate(protocolsSGL):
+                                if station not in ownStations:
+                                    r.add(T_c[0][i][j][k][l],
+                                          -1*self.costSGL*demand.size)
+                    for i, txSatellite in enumerate(allSatellitesISL):
+                        for j, rxSatellite in enumerate(allSatellitesISL):
+                            for k, protocol in enumerate(protocolsISL):
+                                if rxSatellite not in ownSatellites:
+                                    r.add(L_c[0][i][j][k][l],
+                                          -1*self.costISL*demand.size)
+                lp.addConstraint(r, 'GE', -1 - federate.cash,
+                                 '{} net cash must be positive'
+                                 .format(federate.name))
                             
                 lp.setObjective(J, False)
                 code, description = lp.solve()
@@ -1112,7 +1106,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                                 isl_i = allSatellitesISL.index(satellite)
                                 for k, rxSatellite in enumerate(allSatellitesISL):
                                     for l, protocol in enumerate(protocolsISL):
-                                        if(lp.get(L_c[0][i][k][l][j])):
+                                        if(lp.get(L_c[0][isl_i][k][l][j])):
                                             controller.transport(protocol, data,
                                                                  satellite, rxSatellite)
                                             _transportContract(operations, rxSatellite,
@@ -1158,7 +1152,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                                 isl_i = allSatellitesISL.index(satellite)
                                 for k, rxSatellite in enumerate(allSatellitesISL):
                                     for l, protocol in enumerate(protocolsISL):
-                                        if(lp.get(L_d[0][i][k][l][j])):
+                                        if(lp.get(L_d[0][isl_i][k][l][j])):
                                             controller.transport(protocol, data,
                                                                  satellite, rxSatellite)
                                             _transportDemand(operations, rxSatellite,
