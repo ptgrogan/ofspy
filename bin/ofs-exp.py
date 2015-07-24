@@ -78,17 +78,28 @@ def sortBySize(a, b):
         a = " ".join(a)
         b = " ".join(b)
     if a.count(',') == b.count(','):
-        if a.count('VIS')+a.count('SAR') == b.count('VIS')+b.count('SAR'):
-            return a.count('VIS') - b.count('VIS')
+        if a.count('VIS')+a.count('SAR')+a.count('DAT') \
+                == b.count('VIS')+b.count('SAR')+b.count('DAT'):
+            if a.count('VIS')+a.count('SAR') == b.count('VIS')+b.count('SAR'):
+                if a.count('VIS') == b.count('VIS'):
+                    if a.count('SAR') == b.count('SAR'):
+                        return len(a) - len(b)
+                    else:
+                        return a.count('SAR') - b.count('SAR')
+                else:
+                    return a.count('VIS') - b.count('VIS')
+            else:
+                return a.count('VIS')+a.count('SAR') - b.count('VIS')+b.count('SAR')
         else:
-            return a.count('VIS')+a.count('SAR') - b.count('VIS')+b.count('SAR')
+            return a.count('VIS')+a.count('SAR')+a.count('DAT') \
+                    - b.count('VIS')+b.count('SAR')+b.count('DAT')
     else:
         return a.count(',') - b.count(',')
 
 def enum1x1Sats(player, sector, sgl, isl):
-    out = list(set(enumSatellites(player, 2, 'MEO', sector, sgl, isl))
-               | set(enumSatellites(player, 4, 'MEO', sector, sgl, isl))
-               | set(enumSatellites(player, 6, 'MEO', sector, sgl, isl)))
+    out = enumSatellites(player, 2, 'MEO', sector, sgl, isl) \
+            + enumSatellites(player, 4, 'MEO', sector, sgl, isl) \
+            + enumSatellites(player, 6, 'MEO', sector, sgl, isl)
     out.sort(sortBySize)
     return out
 
@@ -104,28 +115,28 @@ def enum1xNSats(number, player, sector, sgl, isl):
     satsISL = [enum1x1Sats(player, (sector-1+(6-i))%6+1, sgl, isl)
                for i in range(number)]
     
-    out = list(set(map(lambda j: ' '.join(map(lambda i: satsSGL[i][j[i]], range(number))),
-                       [i for i in itertools.combinations_with_replacement(
-                        range(len(satsSGL[0])), number)
-                        if all(sgl in satsSGL[0][j]
-                               and ('VIS' in satsSGL[0][j]
-                                    or 'SAR' in satsSGL[0][j])
-                               and not isl in satsSGL[0][j]
-                               for j in i)]))
-               | set(map(lambda j: ' '.join(map(lambda i: satsISL[i][j[i]], range(number))),
-                         [i for i in itertools.combinations_with_replacement(
-                            range(len(satsISL[0])), number)
-                          if all(isl in satsISL[0][j]
-                                 and sgl in satsISL[0][j]
-                                 for j in i)
-                          and any('VIS' in satsISL[0][j]
-                                  or 'SAR' in satsISL[0][j]
-                                  or 'ISL' in satsISL[0][j]
-                                  for j in i)
-                          and sum(satsISL[0][j].count('MediumSat')
-                                  for j in i) <= 2
-                          and sum(satsISL[0][j].count('LargeSat')
-                                  for j in i) <= 1])))
+    out = map(lambda j: ' '.join(map(lambda i: satsSGL[i][j[i]], range(number))),
+              [i for i in itertools.combinations_with_replacement(
+                range(len(satsSGL[0])), number)
+               if all(sgl in satsSGL[0][j]
+                      and ('VIS' in satsSGL[0][j]
+                           or 'SAR' in satsSGL[0][j])
+                      and not isl in satsSGL[0][j]
+                      for j in i)]) \
+            + map(lambda j: ' '.join(map(lambda i: satsISL[i][j[i]], range(number))),
+                  [i for i in itertools.combinations_with_replacement(
+                    range(len(satsISL[0])), number)
+                   if all(isl in satsISL[0][j]
+                          and sgl in satsISL[0][j]
+                          for j in i)
+                   and any('VIS' in satsISL[0][j]
+                           or 'SAR' in satsISL[0][j]
+                           or 'ISL' in satsISL[0][j]
+                           for j in i)
+                   and sum(satsISL[0][j].count('MediumSat')
+                           for j in i) <= 2
+                   and sum(satsISL[0][j].count('LargeSat')
+                           for j in i) <= 1])
     out.sort(sortBySize)
     return out
 
@@ -138,32 +149,32 @@ def enumPxNSats(number, players, sectors, sgl, isl):
     sats = [enum1xNSats(number, players[i], sectors[i], sgl, isl)
             for i in range(len(players))]
     
-    out = list(set(map(lambda j: '  '.join(map(lambda i: sats[i][j[i]], range(len(players)))),
-                       [i for i in itertools.combinations_with_replacement(
-                        range(len(sats[0])), len(players))
-                        if all(sgl in sats[0][j]
-                               and ('VIS' in sats[0][j]
-                                    or 'SAR' in sats[0][j])
-                               and not isl in sats[0][j]
-                               for j in i)
-                        and sum(sats[0][j].count('MediumSat')
-                                for j in i) <= 2
-                        and sum(sats[0][j].count('LargeSat')
-                                for j in i) <= 1]))
-               | set(map(lambda j: '  '.join(map(lambda i: sats[i][j[i]], range(len(players)))),
-                         [i for i in itertools.combinations_with_replacement(
-                            range(len(sats[0])), len(players))
-                          if all(isl in sats[0][j]
-                                 and sgl in sats[0][j]
-                                 for j in i)
-                          and any('VIS' in sats[0][j]
-                                  or 'SAR' in sats[0][j]
-                                  or 'ISL' in sats[0][j]
-                                  for j in i)
-                          and sum(sats[0][j].count('MediumSat')
-                                  for j in i) <= 2
-                          and sum(sats[0][j].count('LargeSat')
-                                  for j in i) <= 1])))
+    out = map(lambda j: '  '.join(map(lambda i: sats[i][j[i]], range(len(players)))),
+              [i for i in itertools.combinations_with_replacement(
+                range(len(sats[0])), len(players))
+               if all(sgl in sats[0][j]
+                      and ('VIS' in sats[0][j]
+                           or 'SAR' in sats[0][j])
+                      and not isl in sats[0][j]
+                      for j in i)
+               and sum(sats[0][j].count('MediumSat')
+                       for j in i) <= 2
+               and sum(sats[0][j].count('LargeSat')
+                       for j in i) <= 1]) \
+            + map(lambda j: '  '.join(map(lambda i: sats[i][j[i]], range(len(players)))),
+                  [i for i in itertools.combinations_with_replacement(
+                    range(len(sats[0])), len(players))
+                   if all(isl in sats[0][j]
+                          and sgl in sats[0][j]
+                          for j in i)
+                   and any('VIS' in sats[0][j]
+                           or 'SAR' in sats[0][j]
+                           or 'ISL' in sats[0][j]
+                           for j in i)
+                   and sum(sats[0][j].count('MediumSat')
+                           for j in i) <= 2
+                   and sum(sats[0][j].count('LargeSat')
+                           for j in i) <= 1])
     out.sort(sortBySize)
     return out
 
@@ -189,10 +200,10 @@ def enumSymmetricPxNSatDesigns(number, players, sectors, sgl, isl):
         [sats, ' '.join(map(lambda i: sizeStation(players[i], sectors[i],
                                          sgl, sats.split('  ')[i].split(' ')),
                    range(len(players))))]),
-        enumPxNSats(number, players, sectors, sgl, isl))
+        enumSymmetricPxNSats(number, players, sectors, sgl, isl))
 
 def enumMASV():
-    return map(lambda d: d + " 2.MediumSat@MEO1,VIS,SAR,oSGL,oISL 2.GroundSta@SUR4,oSGL",
+    out = map(lambda d: d + " 2.MediumSat@MEO1,VIS,SAR,oSGL,oISL 2.GroundSta@SUR4,oSGL",
                set(enumSymmetricPxNSatDesigns(1,[1],[1],'pSGL','pISL'))
                 | set(enumSymmetricPxNSatDesigns(2,[1],[1],'pSGL','pISL'))
                 | set(enumSymmetricPxNSatDesigns(3,[1],[1],'pSGL','pISL'))
@@ -205,12 +216,14 @@ def enumMASV():
                 | set(enumSymmetricPxNSatDesigns(1,[1],[1],'oSGL','oISL'))
                 | set(enumSymmetricPxNSatDesigns(2,[1],[1],'oSGL','oISL'))
                 | set(enumSymmetricPxNSatDesigns(3,[1],[1],'oSGL','oISL')))
+    out.sort(sortBySize)
+    return out
 
 def executeMASV(start, stop):
     execute(start, stop, enumMASV(), 2, 0, 24, 'd6,a,1', 'x50,25,6,a,1')
 
 def enumBVC():
-    return list(set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'pSGL','pISL'))
+    out = list(set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'pSGL','pISL'))
                 | set(enumSymmetricPxNSatDesigns(2,[1,2],[1,5],'pSGL','pISL'))
                 | set(enumSymmetricPxNSatDesigns(3,[1,2],[1,4],'pSGL','pISL'))
                 | set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'pSGL','oISL'))
@@ -222,6 +235,8 @@ def enumBVC():
                 | set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'oSGL','oISL'))
                 | set(enumSymmetricPxNSatDesigns(2,[1,2],[1,5],'oSGL','oISL'))
                 | set(enumSymmetricPxNSatDesigns(3,[1,2],[1,4],'oSGL','oISL')))
+    out.sort(sortBySize)
+    return out
 
 def executeBVC(start, stop):
     execute(start, stop, enumBVC(), 2, 0, 24, 'n', 'd6,a,1')
@@ -244,8 +259,7 @@ def execute(start, stop, cases, numPlayers,
             numPlayers, initialCash, numTurns, seed, ops, fops)
             for (seed, elements) in itertools.product(range(start, stop), cases)]):
         print result
-    """
-    single-threaded case
+    """ single-threaded case
     for (seed, elements) in itertools.product(range(start, stop), cases)]:
         print executeCase(([e for e in elements.split(' ') if e != ''],
             numPlayers, initialCash, numTurns, seed, ops, fops))
