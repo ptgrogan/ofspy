@@ -25,6 +25,11 @@ import logging
 from multiprocessing import Pool
 from scoop import futures
 
+from pymongo import MongoClient
+DB_HOST = "192.168.0.106"
+DB_PORT = 27017
+db = MongoClient(DB_HOST, DB_PORT).ofs
+
 from ofspy.ofs import OFS
     
 def enumStations(player, sector, sgl):
@@ -206,17 +211,17 @@ def executeMASV(start, stop):
 
 def enumBVC():
     return list(set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'pSGL','pISL'))
-                | set(enumSymmetricPxNSatDesigns(2,[1,2],[1,5],'pSGL','pISL')))
-                #| set(enumSymmetricPxNSatDesigns(3,[1,2],[1,4],'pSGL','pISL'))
-                #| set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'pSGL','oISL'))
-                #| set(enumSymmetricPxNSatDesigns(2,[1,2],[1,5],'pSGL','oISL'))
-                #| set(enumSymmetricPxNSatDesigns(3,[1,2],[1,4],'pSGL','oISL'))
-                #| set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'oSGL','pISL'))
-                #| set(enumSymmetricPxNSatDesigns(2,[1,2],[1,5],'oSGL','pISL'))
-                #| set(enumSymmetricPxNSatDesigns(3,[1,2],[1,4],'oSGL','pISL'))
-                #| set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'oSGL','oISL'))
-                #| set(enumSymmetricPxNSatDesigns(2,[1,2],[1,5],'oSGL','oISL'))
-                #| set(enumSymmetricPxNSatDesigns(3,[1,2],[1,4],'oSGL','oISL')))
+                | set(enumSymmetricPxNSatDesigns(2,[1,2],[1,5],'pSGL','pISL'))
+                | set(enumSymmetricPxNSatDesigns(3,[1,2],[1,4],'pSGL','pISL'))
+                | set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'pSGL','oISL'))
+                | set(enumSymmetricPxNSatDesigns(2,[1,2],[1,5],'pSGL','oISL'))
+                | set(enumSymmetricPxNSatDesigns(3,[1,2],[1,4],'pSGL','oISL'))
+                | set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'oSGL','pISL'))
+                | set(enumSymmetricPxNSatDesigns(2,[1,2],[1,5],'oSGL','pISL'))
+                | set(enumSymmetricPxNSatDesigns(3,[1,2],[1,4],'oSGL','pISL'))
+                | set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'oSGL','oISL'))
+                | set(enumSymmetricPxNSatDesigns(2,[1,2],[1,5],'oSGL','oISL'))
+                | set(enumSymmetricPxNSatDesigns(3,[1,2],[1,4],'oSGL','oISL')))
 
 def executeBVC(start, stop):
     execute(start, stop, enumBVC(), 2, 0, 24, 'n', 'd6,a,1')
@@ -226,26 +231,48 @@ def execute(start, stop, cases, numPlayers,
     logging.info('Executing {} cases with seeds from {} to {}.'
                  .format(len(cases), start, stop))
     pool = Pool()
-    for seed in range(start, stop):
-        """ multiprocessing case
-        for result in pool.map(
-        executeCase, [([e for e in elements.split(' ') if e != ''],
-                numPlayers, initialCash, numTurns, seed, ops, fops)
-                for elements in cases]):
-                print result
-        """
-        """ scoop case """
-        for result in futures.map(
-            executeCase, [([e for e in elements.split(' ') if e != ''],
-                numPlayers, initialCash, numTurns, seed, ops, fops)
-                for elements in cases]):
+    """ multiprocessing case
+    for result in pool.map(
+    executeCase, [([e for e in elements.split(' ') if e != ''],
+            numPlayers, initialCash, numTurns, seed, ops, fops)
+            for (seed, elements) in itertools.product(range(start, stop), cases)]):
             print result
-        """
-        single-threaded case
-        for elements in cases:
-            print executeCase(([e for e in elements.split(' ') if e != ''],
-                numPlayers, initialCash, numTurns, seed, ops, fops))
-        """
+    """
+    """ scoop case """
+    for result in futures.map(
+        queryCase, [([e for e in elements.split(' ') if e != ''],
+            numPlayers, initialCash, numTurns, seed, ops, fops)
+            for (seed, elements) in itertools.product(range(start, stop), cases)]):
+        print result
+    """
+    single-threaded case
+    for (seed, elements) in itertools.product(range(start, stop), cases)]:
+        print executeCase(([e for e in elements.split(' ') if e != ''],
+            numPlayers, initialCash, numTurns, seed, ops, fops))
+    """
+
+def queryCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
+    doc = db.results.find_one({'elements': ' '.join(elements),
+                               'numPlayers':numPlayers,
+                               'initialCash':initialCash,
+                               'numTurns':numTurns,
+                               'seed':seed,
+                               'ops':ops,
+                               'fops': fops})
+    if doc is None:
+        results = executeCase((elements, numPlayers, initialCash, 
+                               numTurns, seed, ops, fops))
+        db.results.insert_one({'elements': ' '.join(elements),
+                               'numPlayers':numPlayers,
+                               'initialCash':initialCash,
+                               'numTurns':numTurns,
+                               'seed':seed,
+                               'ops':ops,
+                               'fops': fops,
+                               'results': results})
+    else:
+        results = [tuple(result) for result in doc[u'results']]
+    return results
 
 def executeCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
     """

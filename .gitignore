@@ -1,2 +1,4 @@
 ofspy.komodoproject
 *.pyc
+bin/hosts
+data/
