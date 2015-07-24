@@ -221,8 +221,8 @@ def enumMASV():
     out.sort(sortBySize)
     return out
 
-def executeMASV(start, stop):
-    execute(start, stop, enumMASV(), 2, 0, 24, 'd6,a,1', 'x50,25,6,a,1')
+def executeMASV(start, stop, compute):
+    execute(start, stop, enumMASV(), 2, 0, 24, 'd6,a,1', 'x50,25,6,a,1', compute)
 
 def enumBVC():
     out = list(set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'pSGL','pISL'))
@@ -240,32 +240,35 @@ def enumBVC():
     out.sort(sortBySize)
     return out
 
-def executeBVC(start, stop):
-    execute(start, stop, enumBVC(), 2, 0, 24, 'n', 'd6,a,1')
+def executeBVC(start, stop, compute):
+    execute(start, stop, enumBVC(), 2, 0, 24, 'n', 'd6,a,1', compute)
 
 def execute(start, stop, cases, numPlayers,
-            initialCash, numTurns, ops, fops):
-    logging.info('Executing {} cases with seeds from {} to {}.'
-                 .format(len(cases), start, stop))
-    pool = Pool()
-    """ multiprocessing case
-    for result in pool.map(
-    executeCase, [([e for e in elements.split(' ') if e != ''],
-            numPlayers, initialCash, numTurns, seed, ops, fops)
-            for (seed, elements) in itertools.product(range(start, stop), cases)]):
-            print result
-    """
-    """ scoop case """
-    for result in futures.map(
-        queryCase, [([e for e in elements.split(' ') if e != ''],
-            numPlayers, initialCash, numTurns, seed, ops, fops)
-            for (seed, elements) in itertools.product(range(start, stop), cases)]):
-        print result
-    """ single-threaded case
-    for (seed, elements) in itertools.product(range(start, stop), cases)]:
-        print executeCase(([e for e in elements.split(' ') if e != ''],
-            numPlayers, initialCash, numTurns, seed, ops, fops))
-    """
+            initialCash, numTurns, ops, fops, compute):
+    executions = [([e for e in elements.split(' ') if e != ''],
+        numPlayers, initialCash, numTurns, seed, ops, fops)
+        for (seed, elements) in itertools.product(range(start, stop), cases)]
+    numComplete = 0.0
+    logging.info('Executing {} cases with seeds from {} to {} for {} total executions.'
+                 .format(len(cases), start, stop, len(executions)))
+    if compute == 'serial':
+        for result in map(queryCase, executions):
+            # TODO does not work as intended
+            numComplete += 1
+            logging.info('{:5.1%} complete: {}'
+                         .format(numComplete/len(executions), result))
+    elif compute == 'parallel':
+        pool = Pool()
+        for result in pool.map(queryCase, executions):
+            # TODO does not work as intended
+            numComplete += 1
+            logging.info('{:5.1%} complete: {}'
+                         .format(numComplete/len(executions), result))
+    elif compute == 'distributed':
+        for result in futures.map(queryCase, executions):
+            numComplete += 1
+            logging.info('{:5.1%} complete: {}'
+                         .format(numComplete/len(executions), result))
 
 def queryCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
     doc = db.results.find_one({'elements': ' '.join(elements),
@@ -291,10 +294,6 @@ def queryCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
     return results
 
 def executeCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
-    """
-    print '{} -p {} -i {} -d {} -s {} -o {} -f {}'.format(
-        elements, numPlayers, initialCash, numTurns, seed, ops, fops)
-    """
     return OFS(elements=elements, numPlayers=numPlayers, initialCash=initialCash,
                numTurns=numTurns, seed=seed, ops=ops, fops=fops).execute()
     
@@ -308,17 +307,20 @@ if __name__ == '__main__':
                         help='number of players')
     parser.add_argument('-i', '--initialCash', type=int, default=1200,
                         help='initial cash')
-    parser.add_argument('-s', '--start', type=int, default=0,
-                        help='starting random number seed')
-    parser.add_argument('-t', '--stop', type=int, default=10,
-                        help='stopping random number seed')
     parser.add_argument('-o', '--ops', type=str, default='d6',
                         help='federate operations model specification')
     parser.add_argument('-f', '--fops', type=str, default='',
                         help='federation operations model specification')
-    parser.add_argument('-l', '--logging', type=str, default='error',
+    parser.add_argument('-l', '--logging', type=str, default='info',
                         choices=['debug','info','warning','error'],
                         help='logging level')
+    parser.add_argument('-s', '--start', type=int, default=0,
+                        help='starting random number seed')
+    parser.add_argument('-t', '--stop', type=int, default=10,
+                        help='stopping random number seed')
+    parser.add_argument('-c', '--compute', type=str, default='parallel',
+                        choices=['serial','parallel','distributed'],
+                        help='computing mode')
     
     args = parser.parse_args()
     if args.logging == 'debug':
@@ -332,10 +334,10 @@ if __name__ == '__main__':
     logging.basicConfig(level=level)
     
     if len(args.experiment) == 1 and args.experiment[0] == 'masv':
-        executeMASV(args.start, args.stop)
+        executeMASV(args.start, args.stop, args.compute)
     elif len(args.experiment) == 1 and args.experiment[0] == 'bvc':
-        executeBVC(args.start, args.stop)
+        executeBVC(args.start, args.stop, args.compute)
     else:
         execute(args.start, args.stop, [' '.join(args.experiment)],
                 args.numPlayers, args.initialCash, args.numTurns,
-                args.ops, args.fops)
+                args.ops, args.fops, args.compute)
