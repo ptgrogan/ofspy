@@ -183,7 +183,8 @@ def enumPxNSatDesigns(number, players, sectors, sgl, isl):
         [sats, ' '.join(map(lambda i: sizeStation(players[i], sectors[i],
                                          sgl, sats.split('  ')[i].split(' ')),
                    range(len(players))))]),
-        enumPxNSats(number, players, sectors, sgl, isl))
+        enumPxNSats(number, players, 
+            map(lambda sector: (sector-1+(6-1))%6+1, sectors), sgl, isl))
 
 def enumSymmetricPxNSats(number, players, sectors, sgl, isl):
     sats = [enum1xNSats(number, players[i], sectors[i], sgl, isl)
@@ -200,7 +201,8 @@ def enumSymmetricPxNSatDesigns(number, players, sectors, sgl, isl):
         [sats, ' '.join(map(lambda i: sizeStation(players[i], sectors[i],
                                          sgl, sats.split('  ')[i].split(' ')),
                    range(len(players))))]),
-        enumSymmetricPxNSats(number, players, sectors, sgl, isl))
+        enumSymmetricPxNSats(number, players, 
+            map(lambda sector: (sector-1+(6-1))%6+1, sectors), sgl, isl))
 
 def enumMASV():
     out = map(lambda d: d + " 2.MediumSat@MEO1,VIS,SAR,oSGL,oISL 2.GroundSta@SUR4,oSGL",
