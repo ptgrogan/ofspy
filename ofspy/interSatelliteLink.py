@@ -61,8 +61,9 @@ class InterSatelliteLink(Transceiver):
         return super(InterSatelliteLink, self).couldTransmit(data, receiver) \
                 and txLocation.isOrbit() \
                 and rxLocation.isOrbit() \
-                and max(txLocation.sector, rxLocation.sector) \
-                    - min(txLocation.sector, rxLocation.sector) <= 1
+                and (abs(txLocation.sector - rxLocation.sector) <= 1
+                     or abs(txLocation.sector - rxLocation.sector) >= 5)
+                     # TODO make independent of number of sectors
         
     def couldReceive(self, data, transmitter, txLocation, rxLocation):
         """
@@ -80,8 +81,9 @@ class InterSatelliteLink(Transceiver):
         return super(InterSatelliteLink, self).couldReceive(data, transmitter) \
                 and txLocation.isOrbit() \
                 and rxLocation.isOrbit() \
-                and max(txLocation.sector, rxLocation.sector) \
-                    - min(txLocation.sector, rxLocation.sector) <= 1
+                and (abs(txLocation.sector - rxLocation.sector) <= 1
+                     or abs(txLocation.sector - rxLocation.sector) >= 5)
+                     # TODO make independent of number of sectors
         
     def isISL(self):
         """
