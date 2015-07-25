@@ -98,7 +98,7 @@ def mapReduce(db, dbName):
         "  value.totStdErr = value.totStdDev / Math.sqrt(value.count);" +
         "  return value;"+
         "}")
-    db[dbName].map_reduce(ppMap, ppReduce, '{}-pp'.format(dbName),
+    db[dbName].map_reduce(ppMap, ppReduce, '{}_pp'.format(dbName),
                           finalize=ppFinalize)
 
 def processData(db, dbName):
@@ -126,7 +126,7 @@ def processData(db, dbName):
                          'p1Min', 'p1Max', 'p1StdErr',
                          'p2Cost', 'p2Avg', 'p2ExpVal',
                          'p2Min', 'p2Max', 'p2StdErr'])
-        for doc in db['{}-pp'.format(dbName)].find().sort(u'_id.totCost', pymongo.ASCENDING):
+        for doc in db['{}_pp'.format(dbName)].find().sort(u'_id.totCost', pymongo.ASCENDING):
             counter += 1
             writer.writerow([counter, doc[u'_id'][u'elements'].encode('ascii','ignore').replace(',','|'),
                              doc[u'_id'][u'ops'].encode('ascii','ignore').replace(',','|'),
@@ -162,9 +162,16 @@ def processData(db, dbName):
             p1ValueAvg = np.append(p1ValueAvg, doc['value'][u'p1Avg'])
             p2ValueAvg = np.append(p2ValueAvg, doc['value'][u'p2Avg'])
             totValueAvg = np.append(totValueAvg, doc['value'][u'totAvg'])
-            pisl = np.append(pisl, 'pISL' in doc[u'_id'][u'elements'])
-            oisl = np.append(oisl, 'oISL' in doc[u'_id'][u'elements'])
-            osgl = np.append(osgl, 'oSGL' in doc[u'_id'][u'elements'])
+            m = re.search('((1\.[^\s]*\s*)+) (?:(2\.[^\s]*\s*)+)',
+                          doc[u'_id'][u'elements'])
+            if m:
+                pisl = np.append(pisl, 'pISL' in m.group(1))
+                oisl = np.append(oisl, 'oISL' in m.group(1))
+                osgl = np.append(osgl, 'oSGL' in m.group(1))
+            else:
+                pisl = np.append(pisl, 'pISL' in doc[u'_id'][u'elements'])
+                oisl = np.append(oisl, 'oISL' in doc[u'_id'][u'elements'])
+                osgl = np.append(osgl, 'oSGL' in doc[u'_id'][u'elements'])
     p1ExpValue = p1ValueAvg - p1Cost
     p2ExpValue = p2ValueAvg - p2Cost
     totExpValue = totValueAvg - totCost
@@ -269,15 +276,15 @@ def postProcessMASV(db):
                          'ytick.labelsize':8})
     if np.size(id[independent] > 0):
         tradespaceIndependent('masv-i', id[independent], 
-            p1Cost[independent]/2, 
-            p1ExpValue[independent]/2,
-            p1ValueStdErr[independent]/2, 
+            p1Cost[independent], 
+            p1ExpValue[independent],
+            p1ValueStdErr[independent], 
             pisl[independent], 
             oisl[independent], 
             osgl[independent])
     if np.size(id) > 0:
         tradespaceCentralized('masv-c', id, 
-            p1Cost/2, p1ExpValue/2, p1ValueStdErr/2,
+            p1Cost, p1ExpValue, p1ValueStdErr,
             pisl, oisl, osgl)
     
 def postProcessBVC(db):
@@ -403,10 +410,6 @@ def postProcessBVC(db):
             print 'cost: ' + '%.0f'%c_cost[i] + ', value: ' + '%.0f'%x_value[i]
             print 'id ' + '%0d'%id + ': ' + elements[id==id].tostring()
     
-
-def postProcessMASV(db):
-    pass
-    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="This program post-processes an OFS experiment.")
     parser.add_argument('experiment', type=str, nargs='+',
@@ -433,6 +436,6 @@ if __name__ == '__main__':
     db = pymongo.MongoClient(args.dbHost, args.dbPort).ofs
     
     if len(args.experiment) == 1 and args.experiment[0] == 'masv':
-        pass
+        postProcessMASV(db)
     elif len(args.experiment) == 1 and args.experiment[0] == 'bvc':
         postProcessBVC(db)
