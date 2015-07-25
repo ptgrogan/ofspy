@@ -25,8 +25,10 @@ import logging
 from scoop import futures
 
 import pymongo
+db = None # lazy-load if required
 
 from ofspy.ofs import OFS
+
     
 def enumStations(player, sector, sgl):
     out = map(lambda mods: '{}.GroundSta@SUR{}{}{}'.format(
@@ -218,7 +220,8 @@ def enumMASV():
     return out
 
 def executeMASV(dbHost, dbPort, start, stop):
-    execute(dbHost, dbPort, start, stop, enumMASV(), 2, 0, 24, 'd6,a,1', 'x50,25,6,a,1')
+    execute(dbHost, dbPort, 'masv', start, stop,
+            enumMASV(), 2, 0, 24, 'd6,a,1', 'x50,25,6,a,1')
 
 def enumBVC():
     out = list(set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'pSGL','pISL'))
@@ -237,12 +240,14 @@ def enumBVC():
     return out
 
 def executeBVC(dbHost, dbPort, start, stop):
-    execute(dbHost, dbPort, start, stop, enumBVC(), 2, 0, 24, 'n', 'd6,a,1')
+    execute(dbHost, dbPort, 'bvc', start, stop,
+            enumBVC(), 2, 0, 24, 'n', 'd6,a,1')
 
-def execute(dbHost, dbPort, start, stop, cases, numPlayers,
+def execute(dbHost, dbPort, dbName, start, stop, cases, numPlayers,
             initialCash, numTurns, ops, fops):
-    executions = [(dbHost, dbPort, [e for e in elements.split(' ') if e != ''],
-        numPlayers, initialCash, numTurns, seed, ops, fops)
+    executions = [(dbHost, dbPort, dbName,
+                   [e for e in elements.split(' ') if e != ''],
+                   numPlayers, initialCash, numTurns, seed, ops, fops)
         for (seed, elements) in itertools.product(range(start, stop), cases)]
     numComplete = 0.0
     logging.info('Executing {} cases with seeds from {} to {} for {} total executions.'
@@ -250,33 +255,43 @@ def execute(dbHost, dbPort, start, stop, cases, numPlayers,
     for result in futures.map(queryCase, executions):
         print result
 
-def queryCase((dbHost, dbPort, elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
-    if dbHost is None:
+def queryCase((dbHost, dbPort, dbName, elements, numPlayers,
+               initialCash, numTurns, seed, ops, fops)):
+    global db
+    
+    if db is None and dbHost is None:
         return executeCase((elements, numPlayers, initialCash,
                             numTurns, seed, ops, fops))
-    else:
+    elif db is None and dbHost is not None:
         db = pymongo.MongoClient(dbHost, dbPort).ofs
-        doc = db.results.find_one({'elements': ' '.join(elements),
-                                   'numPlayers':numPlayers,
-                                   'initialCash':initialCash,
-                                   'numTurns':numTurns,
-                                   'seed':seed,
-                                   'ops':ops,
-                                   'fops': fops})
+        
+    query = {u'elements': ' '.join(elements),
+             u'numPlayers':numPlayers,
+             u'initialCash':initialCash,
+             u'numTurns':numTurns,
+             u'seed':seed,
+             u'ops':ops,
+             u'fops': fops}
+    doc = None
+    if dbName is not None:
+        doc = db[dbName].find_one(query)
+    if doc is None:
+        doc = db.results.find_one(query)
         if doc is None:
             results = executeCase((elements, numPlayers, initialCash, 
                                    numTurns, seed, ops, fops))
-            db.results.insert_one({'elements': ' '.join(elements),
-                                   'numPlayers':numPlayers,
-                                   'initialCash':initialCash,
-                                   'numTurns':numTurns,
-                                   'seed':seed,
-                                   'ops':ops,
-                                   'fops': fops,
-                                   'results': results})
-        else:
-            results = [tuple(result) for result in doc[u'results']]
-        return results
+            doc = {u'elements': ' '.join(elements),
+                   u'numPlayers':numPlayers,
+                   u'initialCash':initialCash,
+                   u'numTurns':numTurns,
+                   u'seed':seed,
+                   u'ops':ops,
+                   u'fops': fops,
+                   u'results': results}
+            db.results.insert_one(doc)
+        if dbName is not None:
+            db[dbName].insert_one(doc)
+    return [tuple(result) for result in doc[u'results']]
 
 def executeCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
     return OFS(elements=elements, numPlayers=numPlayers, initialCash=initialCash,
@@ -324,7 +339,7 @@ if __name__ == '__main__':
     elif len(args.experiment) == 1 and args.experiment[0] == 'bvc':
         executeBVC(args.dbHost, args.dbPort, args.start, args.stop)
     else:
-        execute(args.dbHost, args.dbPort, args.start, args.stop,
+        execute(args.dbHost, args.dbPort, None, args.start, args.stop,
                 [' '.join(args.experiment)],
                 args.numPlayers, args.initialCash, args.numTurns,
                 args.ops, args.fops)

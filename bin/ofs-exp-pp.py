@@ -30,7 +30,7 @@ import numpy as np
 import re
 import matplotlib.pyplot as plt
 
-def postProcessBVC(db):
+def mapReduce(db, dbName):
     # code below based on from https://gist.github.com/RedBeard0531/1886960
     ppMap = Code(
         "function() {" +
@@ -98,8 +98,10 @@ def postProcessBVC(db):
         "  value.totStdErr = value.totStdDev / Math.sqrt(value.count);" +
         "  return value;"+
         "}")
-    db.results.map_reduce(ppMap, ppReduce, 'bvc', finalize=ppFinalize)
-    
+    db[dbName].map_reduce(ppMap, ppReduce, '{}-pp'.format(dbName),
+                          finalize=ppFinalize)
+
+def processData(db, dbName):
     id = np.array([])
     elements = np.array([])
     totCost = np.array([])
@@ -110,7 +112,7 @@ def postProcessBVC(db):
     oisl = np.array([], dtype=np.bool_)
     osgl = np.array([], dtype=np.bool_)
     counter = 0
-    with open('data-bvc.csv','wb') as csvfile:
+    with open('data-{}.csv'.format(dbName),'wb') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(['id', 'elements', 'ops', 'fops', 'numTurns', 'count',
                          'totCost', 'totAvg', 'totExpVal',
@@ -119,7 +121,7 @@ def postProcessBVC(db):
                          'p1Min', 'p1Max', 'p1StdErr',
                          'p2Cost', 'p2Avg', 'p2ExpVal',
                          'p2Min', 'p2Max', 'p2StdErr'])
-        for doc in db.bvc.find().sort(u'_id.totCost', pymongo.ASCENDING):
+        for doc in db['{}-pp'.format(dbName)].find().sort(u'_id.totCost', pymongo.ASCENDING):
             counter += 1
             writer.writerow([counter, doc[u'_id'][u'elements'].encode('ascii','ignore').replace(',','|'),
                              doc[u'_id'][u'ops'].encode('ascii','ignore').replace(',','|'),
@@ -153,87 +155,93 @@ def postProcessBVC(db):
             pisl = np.append(pisl, 'pISL' in doc[u'_id'][u'elements'])
             oisl = np.append(oisl, 'oISL' in doc[u'_id'][u'elements'])
             osgl = np.append(osgl, 'oSGL' in doc[u'_id'][u'elements'])
-            
     totExpValue = totValueAvg - totCost
     independent = np.logical_and(oisl==False, osgl==False)
+    return (id, elements, totCost, p1Cost, totValueStdErr, totValueAvg,
+            pisl, oisl, osgl, totExpValue, independent)
     
-    def pareto(id, cost, expValue):
-        p_id = np.array([])
-        p_cost = np.array([])
-        p_value = np.array([])
-        for i in range(0,np.size(cost)):
-            if np.sum(np.logical_and(cost<=cost[i], expValue>expValue[i])) == 0:
-                p_id = np.append(p_id, id[i])
-                p_cost = np.append(p_cost, cost[i])
-                p_value = np.append(p_value, expValue[i])
-        return p_id, p_cost, p_value
+def pareto(id, cost, expValue):
+    p_id = np.array([])
+    p_cost = np.array([])
+    p_value = np.array([])
+    for i in range(0,np.size(cost)):
+        if np.sum(np.logical_and(cost<=cost[i], expValue>expValue[i])) == 0:
+            p_id = np.append(p_id, id[i])
+            p_cost = np.append(p_cost, cost[i])
+            p_value = np.append(p_value, expValue[i])
+    return p_id, p_cost, p_value
+
+def plotTradespaceStep1(c, id, cost, expValue, stdErr):
+    plt.errorbar(cost, expValue, yerr=1.96*stdErr,
+                 fmt='none',color=c,ecolor=c, alpha=0.3)
+def plotTradespaceStep2(c, id, cost, expValue):
+    plt.plot(cost, expValue, ls='', marker='.',
+             mec='none',color=c, alpha=0.3)
+def plotTradespaceStep3(c, id, cost, expValue, P_id):
+    p_id, p_cost, p_value = pareto(id, cost, expValue)
+    for i in np.intersect1d(P_id, p_id):
+        plt.annotate('%0d'%i, xy=(p_cost[p_id==i], p_value[p_id==i]),
+                    xytext=(-5,4), textcoords='offset points', size=8, color=c)    
+
+def tradespaceIndependent(label, id, cost, expValue, stdErr, pisl, oisl, osgl):
+    plt.clf()
+    filters = [np.logical_and.reduce((pisl==False,oisl==False,osgl==False)),
+               np.logical_and.reduce((pisl==True,oisl==False,osgl==False))]
+    colors = ['k','b']
     
-    def plotTradespaceStep1(c, id, cost, expValue, stdErr):
-        plt.errorbar(cost, expValue, yerr=1.96*stdErr,
-                     fmt='none',color=c,ecolor=c, alpha=0.3)
-    def plotTradespaceStep2(c, id, cost, expValue):
-        plt.plot(cost, expValue, ls='', marker='.',
-                 mec='none',color=c, alpha=0.3)
-    def plotTradespaceStep3(c, id, cost, expValue, P_id):
-        p_id, p_cost, p_value = pareto(id, cost, expValue)
-        for i in np.intersect1d(P_id, p_id):
-            plt.annotate('%0d'%i, xy=(p_cost[p_id==i], p_value[p_id==i]),
-                        xytext=(-5,4), textcoords='offset points', size=8, color=c)    
-    
-    def tradespaceIndependent(label, id, cost, expValue, stdErr, pisl, oisl, osgl):
-        plt.clf()
-        filters = [np.logical_and.reduce((pisl==False,oisl==False,osgl==False)),
-                   np.logical_and.reduce((pisl==True,oisl==False,osgl==False))]
-        colors = ['k','b']
+    for i, f in enumerate(filters):
+        plotTradespaceStep1(colors[i], id[f], cost[f], expValue[f], stdErr[f])
+    for i, f in enumerate(filters):
+        plotTradespaceStep2(colors[i], id[f], cost[f], expValue[f])
+    P_id, P_cost, P_value = pareto(id, cost, expValue)
+    for i, f in enumerate(filters):
+        plotTradespaceStep3(colors[i], id[f], cost[f], expValue[f], P_id)
         
-        for i, f in enumerate(filters):
-            plotTradespaceStep1(colors[i], id[f], cost[f], expValue[f], stdErr[f])
-        for i, f in enumerate(filters):
-            plotTradespaceStep2(colors[i], id[f], cost[f], expValue[f])
-        P_id, P_cost, P_value = pareto(id, cost, expValue)
-        for i, f in enumerate(filters):
-            plotTradespaceStep3(colors[i], id[f], cost[f], expValue[f], P_id)
-            
-        plt.plot(P_cost, P_value, ls='steps-post--', color=[.3,.3,.3])
-            
-        plt.xlabel('Initial Cost ($\S$)')
-        plt.ylabel('24-turn Expected Net Value ($\S$)')
-        plt.xlim([1000, 4000])
-        plt.ylim([-2000, 10000])
-        plt.legend(['pSGL','pSGL and pISL'],loc='upper left')
-        plt.grid()
-        plt.gcf().set_size_inches(6.5, 3.5)
-        plt.savefig('ts-'+label+'.png', bbox_inches='tight', dpi=300)
-            
-    def tradespaceCentralized(label, id, cost, expValue, stdErr, pisl, oisl, osgl):
-        plt.clf()
-        filters = [np.logical_and.reduce((pisl==False,oisl==False,osgl==False)),
-                   np.logical_and.reduce((pisl==True,oisl==False,osgl==False)),
-                   np.logical_and.reduce((pisl==False,oisl==True,osgl==False)),
-                   np.logical_and.reduce((pisl==False,oisl==False,osgl==True)),
-                   np.logical_and.reduce((pisl==True,oisl==False,osgl==True)),
-                   np.logical_and.reduce((pisl==False,oisl==True,osgl==True))]
-        colors = ['k','b','g','r','m','y']
+    plt.plot(P_cost, P_value, ls='steps-post--', color=[.3,.3,.3])
         
-        for i, f in enumerate(filters):
-            plotTradespaceStep1(colors[i], id[f], cost[f], expValue[f], stdErr[f])
-        for i, f in enumerate(filters):
-            plotTradespaceStep2(colors[i], id[f], cost[f], expValue[f])
-        P_id, P_cost, P_value = pareto(id, cost, expValue)
-        for i, f in enumerate(filters):
-            plotTradespaceStep3(colors[i], id[f], cost[f], expValue[f], P_id)
-            
-        plt.plot(P_cost, P_value, ls='steps-post--', color=[.3,.3,.3])
-            
-        plt.xlabel('Initial Cost ($\S$)')
-        plt.ylabel('24-turn Expected Net Value ($\S$)')
-        plt.xlim([1000, 4000])
-        plt.ylim([-2000, 10000])
-        plt.legend(['pSGL', 'pSGL and pISL', 'pSGL and oISL',
-                    'oSGL', 'oSGL and pISL', 'oSGL and oISL'],loc='upper left')
-        plt.grid()
-        plt.gcf().set_size_inches(6.5, 3.5)
-        plt.savefig('ts-'+label+'.png', bbox_inches='tight', dpi=300)
+    plt.xlabel('Initial Cost ($\S$)')
+    plt.ylabel('24-turn Expected Net Value ($\S$)')
+    plt.xlim([1000, 4000])
+    plt.ylim([-2000, 10000])
+    plt.legend(['pSGL','pSGL and pISL'],loc='upper left')
+    plt.grid()
+    plt.gcf().set_size_inches(6.5, 3.5)
+    plt.savefig('ts-'+label+'.png', bbox_inches='tight', dpi=300)
+        
+def tradespaceCentralized(label, id, cost, expValue, stdErr, pisl, oisl, osgl):
+    plt.clf()
+    filters = [np.logical_and.reduce((pisl==False,oisl==False,osgl==False)),
+               np.logical_and.reduce((pisl==True,oisl==False,osgl==False)),
+               np.logical_and.reduce((pisl==False,oisl==True,osgl==False)),
+               np.logical_and.reduce((pisl==False,oisl==False,osgl==True)),
+               np.logical_and.reduce((pisl==True,oisl==False,osgl==True)),
+               np.logical_and.reduce((pisl==False,oisl==True,osgl==True))]
+    colors = ['k','b','g','r','m','y']
+    
+    for i, f in enumerate(filters):
+        plotTradespaceStep1(colors[i], id[f], cost[f], expValue[f], stdErr[f])
+    for i, f in enumerate(filters):
+        plotTradespaceStep2(colors[i], id[f], cost[f], expValue[f])
+    P_id, P_cost, P_value = pareto(id, cost, expValue)
+    for i, f in enumerate(filters):
+        plotTradespaceStep3(colors[i], id[f], cost[f], expValue[f], P_id)
+        
+    plt.plot(P_cost, P_value, ls='steps-post--', color=[.3,.3,.3])
+        
+    plt.xlabel('Initial Cost ($\S$)')
+    plt.ylabel('24-turn Expected Net Value ($\S$)')
+    plt.xlim([1000, 4000])
+    plt.ylim([-2000, 10000])
+    plt.legend(['pSGL', 'pSGL and pISL', 'pSGL and oISL',
+                'oSGL', 'oSGL and pISL', 'oSGL and oISL'],loc='upper left')
+    plt.grid()
+    plt.gcf().set_size_inches(6.5, 3.5)
+    plt.savefig('ts-'+label+'.png', bbox_inches='tight', dpi=300)
+
+def postProcessBVC(db):
+    mapReduce(db, 'bvc')
+    (id, elements, totCost, p1Cost, totValueStdErr, totValueAvg,
+     pisl, oisl, osgl, totExpValue, independent) = processData(db, 'bvc')
     
     plt.rcParams.update({'axes.labelsize':8,
                          'font.size':8, 
