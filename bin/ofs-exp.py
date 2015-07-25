@@ -29,13 +29,6 @@ db = None # lazy-load if required
 
 from ofspy.ofs import OFS
 
-import random
-import numpy as np
-from deap import algorithms
-from deap import base
-from deap import creator
-from deap import tools
-
 def enumStations(player, sector, sgl):
     out = map(lambda mods: '{}.GroundSta@SUR{}{}{}'.format(
         player, sector, 
@@ -226,8 +219,8 @@ def enumMASV():
     return out
 
 def executeMASV(dbHost, dbPort, start, stop):
-    return execute(dbHost, dbPort, 'masv', start, stop,
-                   enumMASV(), 2, 0, 24, 'd6,a,1', 'x50,25,6,a,1')
+    execute(dbHost, dbPort, 'masv', start, stop,
+            enumMASV(), 2, 0, 24, 'd6,a,1', 'x50,25,6,a,1')
 
 def enumBVC():
     out = list(set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'pSGL','pISL'))
@@ -246,8 +239,8 @@ def enumBVC():
     return out
 
 def executeBVC(dbHost, dbPort, start, stop):
-    return execute(dbHost, dbPort, 'bvc', start, stop,
-                   enumBVC(), 2, 0, 24, 'n', 'd6,a,1')
+    execute(dbHost, dbPort, 'bvc', start, stop,
+            enumBVC(), 2, 0, 24, 'n', 'd6,a,1')
 
 def execute(dbHost, dbPort, dbName, start, stop, cases, numPlayers,
             initialCash, numTurns, ops, fops):
@@ -258,7 +251,8 @@ def execute(dbHost, dbPort, dbName, start, stop, cases, numPlayers,
     numComplete = 0.0
     logging.info('Executing {} cases with seeds from {} to {} for {} total executions.'
                  .format(len(cases), start, stop, len(executions)))
-    return futures.map(queryCase, executions)
+    for results in futures.map(queryCase, executions):
+        print results
 
 def queryCase((dbHost, dbPort, dbName, elements, numPlayers,
                initialCash, numTurns, seed, ops, fops)):
@@ -301,138 +295,6 @@ def queryCase((dbHost, dbPort, dbName, elements, numPlayers,
 def executeCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
     return OFS(elements=elements, numPlayers=numPlayers, initialCash=initialCash,
                numTurns=numTurns, seed=seed, ops=ops, fops=fops).execute()
-
-def executeGA(dbHost, dbPort):
-    maxCost = 4000
-    maxSatsEach = 2
-    numGenerations = 2
-    probCross = 0.5
-    probMutate = 0.2
-    initPopulation = 100
-    random.seed(85)
-    
-    prototypes = ['']
-    prototypes.extend(enum1x1Sats(1,1,'pSGL','pISL'))
-    prototypes.extend(enum1x1Sats(1,1,'pSGL','oISL'))
-    prototypes.extend(enum1x1Sats(1,1,'oSGL','pISL'))
-    prototypes.extend(enum1x1Sats(1,1,'oSGL','oISL'))
-    prototypes.sort(sortBySize)
-        
-    def getSatellite(i, player, sector):
-        return prototypes[i].replace("1.", str(player)+".") \
-                .replace("MEO1","MEO"+str(sector))
-
-    def getIndividual(individual):
-        satellites = []
-        offsets = np.cumsum(np.array(individual) > 0)
-        for i in range(maxSatsEach):
-            satellites.append(getSatellite(
-                individual[i], 1, (6 - offsets[i] % 6) + 1))
-        for i in range(maxSatsEach, 2*maxSatsEach):
-            satellites.append(getSatellite(
-                individual[i], 2, (6 - offsets[i] % 6) + 1))
-        
-        stations = []
-        p1Station= '1.GroundSta@SUR1';
-        for i in range(0, maxSatsEach):
-            if 'pSGL' in satellites[i] and 'pSGL' not in p1Station:
-                p1Station += ',pSGL'
-        for i in range(0, 2*maxSatsEach):
-            if 'oSGL' in satellites[i] and 'oSGL' not in p1Station:
-                p1Station += ',oSGL'
-        stations.append(p1Station)
-            
-        p2Station = '2.GroundSta@SUR'+str((6 - offsets[maxSatsEach] % 6) + 1);
-        for i in range(maxSatsEach, 2*maxSatsEach):
-            if 'pSGL' in satellites[i] and 'pSGL' not in p2Station:
-                p2Station += ',pSGL'
-        for i in range(0, 2*maxSatsEach):
-            if 'oSGL' in satellites[i] and 'oSGL' not in p2Station:
-                p2Station += ',oSGL'
-        stations.append(p2Station)
-        
-        return '{} {}'.format(' '.join(satellites),
-                              ' '.join(stations))
-
-    def evalIndividual(individual):
-        result = OFS(elements=getIndividual(individual),
-                     numPlayers=2, initialCash=0, numTurns=24,
-                     seed=0, ops='n', fops='d6,a,1').execute()
-        #costs = [sum(r[0] for r in result) for result in results]
-        #values = [sum(r[1] for r in result) for result in results]
-        #netValues = [sum(r[1] - r[0] for r in result)
-        #                 for result in results]
-        costs = [sum(r[0] for r in result)]
-        values = [sum(r[1] for r in result)]
-        netValues = [sum(r[1] - r[0] for r in result)]
-        expCost = sum(costs)/len(costs)
-        expValue = sum(values)/len(values)
-        if expCost > maxCost:
-            return 1e6, 0
-        else:
-            return expCost, expValue
-    
-    creator.create("FitnessMax", base.Fitness, weights=(-1.0,1.0))
-    creator.create("Individual", list, fitness=creator.FitnessMax)
-    
-    toolbox = base.Toolbox()
-    toolbox.register("attr_sat", random.randint,
-                     0, len(prototypes)-1)
-    toolbox.register("individual", tools.initRepeat,
-                     creator.Individual, toolbox.attr_sat,
-                     2*maxSatsEach)
-    toolbox.register("population", tools.initRepeat,
-                     list, toolbox.individual)
-    toolbox.register("evaluate", evalIndividual)
-    toolbox.register("mate", tools.cxTwoPoint)
-    toolbox.register("mutate", tools.mutUniformInt,
-                     low=0, up=len(prototypes)-1, indpb=0.05)
-    toolbox.register("select", tools.selNSGA2)
-    toolbox.register("map", futures.map)
-    
-    pop = toolbox.population(n=initPopulation)
-    hof = tools.ParetoFront()
-    stats = tools.Statistics(lambda ind: ind.fitness.values)
-    stats.register("avg", np.mean, axis=0)
-    stats.register("std", np.std, axis=0)
-    stats.register("min", np.min, axis=0)
-    stats.register("max", np.max, axis=0)
-    
-    pop = algorithms.eaSimple(pop, toolbox, cxpb=probCross,
-                              mutpb=probMutate, ngen=numGenerations,
-                              stats=stats, halloffame=hof, verbose=True)
-    print 'Pareto Front:'
-    print '{0:12} {1:12} {2}'.format("Exp. Cost", "Exp. Value", "Definition")
-    for individual in hof:
-        print "{0:12.1f},{1:12.1f},{2}\n".format(
-            individual.fitness.values[0], 
-            individual.fitness.values[1], 
-            getDefinition(individual))
-    with open('data-{}.csv'.format(dbName),'wb') as csvfile:
-        writer = csv.writer(csvfile, delimiter=',')
-        writer.writerow(['Individual', 'Total Cost',
-                         'Exp. Value', 'Exp. Net Value'])
-        for individual in hof:
-            writer.writerow([getDefinition(individual),
-                             individual.fitness.values[0],
-                             individual.fitness.values[1],
-                             individual.fitness.values[0] - 
-                             individual.fitness.values[1]])
-    
-def queryCommand(command):
-    doc = db.ga.find_one({"command":command})
-    if doc is None:
-        try:
-            stdout = check_output(command).replace("\n","")
-            db.ga.insert_one({"command": command, "stdout": stdout})
-        except RuntimeError as e:
-            print command
-            print e
-            raise
-    else:
-        stdout = doc[u"stdout"]
-    return stdout
-    
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="This program runs an OFS experiment.")
@@ -475,8 +337,6 @@ if __name__ == '__main__':
         executeMASV(args.dbHost, args.dbPort, args.start, args.stop)
     elif len(args.experiment) == 1 and args.experiment[0] == 'bvc':
         executeBVC(args.dbHost, args.dbPort, args.start, args.stop)
-    elif len(args.experiment) == 1 and args.experiment[0] == 'ga':
-        executeGA(args.dbHost, args.dbPort)
     else:
         execute(args.dbHost, args.dbPort, None, args.start, args.stop,
                 [' '.join(args.experiment)],
