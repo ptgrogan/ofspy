@@ -259,23 +259,15 @@ def execute(start, stop, cases, numPlayers,
                  .format(len(cases), start, stop, len(executions)))
     if compute == 'serial':
         for result in map(queryCase, executions):
-            # TODO does not work as intended
-            numComplete += 1
-            logging.info('{:5.1%} complete: {}'
-                         .format(numComplete/len(executions), result))
+            print result
     elif compute == 'parallel':
         pool = Pool()
         for result in pool.map(queryCase, executions):
-            # TODO does not work as intended
-            numComplete += 1
-            logging.info('{:5.1%} complete: {}'
-                         .format(numComplete/len(executions), result))
+            print result
         pool.close()
     elif compute == 'distributed':
         for result in futures.map(queryCase, executions):
-            numComplete += 1
-            logging.info('{:5.1%} complete: {}'
-                         .format(numComplete/len(executions), result))
+            print result
 
 def queryCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
     doc = db.results.find_one({'elements': ' '.join(elements),
@@ -642,7 +634,7 @@ if __name__ == '__main__':
                         help='federate operations model specification')
     parser.add_argument('-f', '--fops', type=str, default='',
                         help='federation operations model specification')
-    parser.add_argument('-l', '--logging', type=str, default='info',
+    parser.add_argument('-l', '--logging', type=str, default='error',
                         choices=['debug','info','warning','error'],
                         help='logging level')
     parser.add_argument('-s', '--start', type=int, default=0,
