@@ -104,9 +104,14 @@ def mapReduce(db, dbName):
 def processData(db, dbName):
     id = np.array([])
     elements = np.array([])
-    totCost = np.array([])
     p1Cost = np.array([])
+    p2Cost = np.array([])
+    totCost = np.array([])
+    p1ValueStdErr = np.array([])
+    p2ValueStdErr = np.array([])
     totValueStdErr = np.array([])
+    p1ValueAvg = np.array([])
+    p2ValueAvg = np.array([])
     totValueAvg = np.array([])
     pisl = np.array([], dtype=np.bool_)
     oisl = np.array([], dtype=np.bool_)
@@ -148,17 +153,27 @@ def processData(db, dbName):
                              doc[u'value'][u'p2StdErr']])
             id = np.append(id, counter)
             elements = np.append(elements, doc[u'_id'][u'elements'].encode('ascii','ignore'))
-            totCost = np.append(totCost, doc[u'_id'][u'totCost'])
             p1Cost = np.append(p1Cost, doc[u'_id'][u'p1Cost'])
+            p2Cost = np.append(p2Cost, doc[u'_id'][u'p2Cost'])
+            totCost = np.append(totCost, doc[u'_id'][u'totCost'])
+            p1ValueStdErr = np.append(p1ValueStdErr, doc['value'][u'p1StdErr'])
+            p2ValueStdErr = np.append(p2ValueStdErr, doc['value'][u'p2StdErr'])
             totValueStdErr = np.append(totValueStdErr, doc['value'][u'totStdErr'])
+            p1ValueAvg = np.append(p1ValueAvg, doc['value'][u'p1Avg'])
+            p2ValueAvg = np.append(p2ValueAvg, doc['value'][u'p2Avg'])
             totValueAvg = np.append(totValueAvg, doc['value'][u'totAvg'])
             pisl = np.append(pisl, 'pISL' in doc[u'_id'][u'elements'])
             oisl = np.append(oisl, 'oISL' in doc[u'_id'][u'elements'])
             osgl = np.append(osgl, 'oSGL' in doc[u'_id'][u'elements'])
+    p1ExpValue = p1ValueAvg - p1Cost
+    p2ExpValue = p2ValueAvg - p2Cost
     totExpValue = totValueAvg - totCost
     independent = np.logical_and(oisl==False, osgl==False)
-    return (id, elements, totCost, p1Cost, totValueStdErr, totValueAvg,
-            pisl, oisl, osgl, totExpValue, independent)
+    return (id, elements, p1Cost, p2Cost, totCost,
+            p1ValueStdErr, p2ValueStdErr, totValueStdErr, 
+            p1ValueAvg, p2ValueAvg, totValueAvg,
+            p1ExpValue, p2ExpValue, totExpValue, 
+            pisl, oisl, osgl, independent)
     
 def pareto(id, cost, expValue):
     p_id = np.array([])
@@ -238,10 +253,40 @@ def tradespaceCentralized(label, id, cost, expValue, stdErr, pisl, oisl, osgl):
     plt.gcf().set_size_inches(6.5, 3.5)
     plt.savefig('ts-'+label+'.png', bbox_inches='tight', dpi=300)
 
+def postProcessMASV(db):
+    mapReduce(db, 'masv')
+    (id, elements, p1Cost, p2Cost, totCost,
+     p1ValueStdErr, p2ValueStdErr, totValueStdErr, 
+     p1ValueAvg, p2ValueAvg, totValueAvg,
+     p1ExpValue, p2ExpValue, totExpValue, 
+     pisl, oisl, osgl, independent) = processData(db, 'masv')
+    
+    plt.rcParams.update({'axes.labelsize':8,
+                         'font.size':8, 
+                         'font.family':'Times New Roman',
+                         'legend.fontsize':8, 
+                         'xtick.labelsize':8,
+                         'ytick.labelsize':8})
+    if np.size(id[independent] > 0):
+        tradespaceIndependent('masv-i', id[independent], 
+            p1Cost[independent]/2, 
+            p1ExpValue[independent]/2,
+            p1ValueStdErr[independent]/2, 
+            pisl[independent], 
+            oisl[independent], 
+            osgl[independent])
+    if np.size(id) > 0:
+        tradespaceCentralized('masv-c', id, 
+            p1Cost/2, p1ExpValue/2, p1ValueStdErr/2,
+            pisl, oisl, osgl)
+    
 def postProcessBVC(db):
     mapReduce(db, 'bvc')
-    (id, elements, totCost, p1Cost, totValueStdErr, totValueAvg,
-     pisl, oisl, osgl, totExpValue, independent) = processData(db, 'bvc')
+    (id, elements, p1Cost, p2Cost, totCost,
+     p1ValueStdErr, p2ValueStdErr, totValueStdErr, 
+     p1ValueAvg, p2ValueAvg, totValueAvg,
+     p1ExpValue, p2ExpValue, totExpValue, 
+     pisl, oisl, osgl, independent) = processData(db, 'bvc')
     
     plt.rcParams.update({'axes.labelsize':8,
                          'font.size':8, 
@@ -259,8 +304,8 @@ def postProcessBVC(db):
             osgl[independent])
     if np.size(id) > 0:
         tradespaceCentralized('bvc-c', id, 
-            totCost/2, totExpValue/2,
-            totValueStdErr/2,  pisl, oisl, osgl)
+            totCost/2, totExpValue/2, totValueStdErr/2,
+            pisl, oisl, osgl)
     
     i_id, i_cost, i_value = pareto(id[independent], 
             totCost[independent]/2, 
@@ -310,7 +355,7 @@ def postProcessBVC(db):
     
     plt.annotate('Upside Potential of FSS Success', xy=(2400, 5000), 
             xycoords='data', textcoords='data', size=8, color='k')
-    plt.annotate('Downside Risk of FSS Failure', xy=(2250, 1600), xytext=(2500,600), 
+    plt.annotate('Downside Risk of FSS Failure', xy=(2300, 2000), xytext=(2500,600), 
             arrowprops=dict(arrowstyle='->',connectionstyle='arc3',ec='r'), 
             xycoords='data', textcoords='data', size=8, color='r')
     
