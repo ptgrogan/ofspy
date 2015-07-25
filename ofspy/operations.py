@@ -926,7 +926,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                                 element.name, demand.name, time), True))
                             J.add(R_d[t][i][j], demand.getValueAt(time-context.time)
                                   if element.isGround()
-                                  else contract.demand.getDefaultValue())
+                                  else demand.getDefaultValue())
                         for j, contract in enumerate(ownContracts):
                             R_c[t][i].insert(j, lp.addColumn('{}-R-{}@{}'.format(
                                 element.name, contract.name, time), True))
