@@ -355,13 +355,16 @@ def executeGA(dbHost, dbPort):
                               ' '.join(stations))
 
     def evalIndividual(individual):
-        results = execute(dbHost, dbPort, None, 0, 10,
-                          [getIndividual(individual)],
-                          2, 0, 24, 'n', 'd6,a,1')
-        costs = [sum(r[0] for r in result) for result in results]
-        values = [sum(r[1] for r in result) for result in results]
-        netValues = [sum(r[0] - r[1] for r in result)
-                         for result in results]
+        result = OFS(elements=getIndividual(individual),
+                     numPlayers=2, initialCash=0, numTurns=24,
+                     seed=0, ops='n', fops='d6,a,1').execute()
+        #costs = [sum(r[0] for r in result) for result in results]
+        #values = [sum(r[1] for r in result) for result in results]
+        #netValues = [sum(r[1] - r[0] for r in result)
+        #                 for result in results]
+        costs = [sum(r[0] for r in result)]
+        values = [sum(r[1] for r in result)]
+        netValues = [sum(r[1] - r[0] for r in result)]
         expCost = sum(costs)/len(costs)
         expValue = sum(values)/len(values)
         if expCost > maxCost:
@@ -385,6 +388,7 @@ def executeGA(dbHost, dbPort):
     toolbox.register("mutate", tools.mutUniformInt,
                      low=0, up=len(prototypes)-1, indpb=0.05)
     toolbox.register("select", tools.selNSGA2)
+    toolbox.register("map", futures.map)
     
     pop = toolbox.population(n=initPopulation)
     hof = tools.ParetoFront()
