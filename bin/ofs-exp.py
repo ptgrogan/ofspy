@@ -242,6 +242,9 @@ def enumBVC():
     out.sort(sortBySize)
     return out
 
+def executeBVC(db, start, stop):
+    execute(db, start, stop, enumBVC(), 2, 0, 24, 'n', 'd6,a,1')
+
 def execute(db, start, stop, cases, numPlayers,
             initialCash, numTurns, ops, fops):
     executions = [(db, [e for e in elements.split(' ') if e != ''],
