@@ -22,7 +22,6 @@ import argparse
 import itertools
 import logging
 
-from multiprocessing import Pool
 from scoop import futures
 
 import pymongo
@@ -224,8 +223,8 @@ def enumMASV():
     out.sort(sortBySize)
     return out
 
-def executeMASV(db, start, stop, compute):
-    execute(db, start, stop, enumMASV(), 2, 0, 24, 'd6,a,1', 'x50,25,6,a,1', compute)
+def executeMASV(db, start, stop):
+    execute(db, start, stop, enumMASV(), 2, 0, 24, 'd6,a,1', 'x50,25,6,a,1')
 
 def enumBVC():
     out = list(set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'pSGL','pISL'))
@@ -243,28 +242,16 @@ def enumBVC():
     out.sort(sortBySize)
     return out
 
-def executeBVC(db, start, stop, compute):
-    execute(db, start, stop, enumBVC(), 2, 0, 24, 'n', 'd6,a,1', compute)
-
 def execute(db, start, stop, cases, numPlayers,
-            initialCash, numTurns, ops, fops, compute):
+            initialCash, numTurns, ops, fops):
     executions = [(db, [e for e in elements.split(' ') if e != ''],
         numPlayers, initialCash, numTurns, seed, ops, fops)
         for (seed, elements) in itertools.product(range(start, stop), cases)]
     numComplete = 0.0
     logging.info('Executing {} cases with seeds from {} to {} for {} total executions.'
                  .format(len(cases), start, stop, len(executions)))
-    if compute == 'serial':
-        for result in map(queryCase, executions):
-            print result
-    elif compute == 'parallel':
-        pool = Pool()
-        for result in pool.map(queryCase, executions):
-            print result
-        pool.close()
-    elif compute == 'distributed':
-        for result in futures.map(queryCase, executions):
-            print result
+    for result in futures.map(queryCase, executions):
+        print result
 
 def queryCase((db, elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
     if db is None:
@@ -647,9 +634,6 @@ if __name__ == '__main__':
                         help='starting random number seed')
     parser.add_argument('-t', '--stop', type=int, default=10,
                         help='stopping random number seed')
-    parser.add_argument('-c', '--compute', type=str, default='parallel',
-                        choices=['serial','parallel','distributed'],
-                        help='computing mode')
     parser.add_argument('--postProcess', action='store_true',
                         help='post-process results')
     parser.add_argument('--dbHost', type=str, default=None,
@@ -673,13 +657,13 @@ if __name__ == '__main__':
         db = pymongo.MongoClient(args.dbHost, args.dbPort).ofs
     
     if len(args.experiment) == 1 and args.experiment[0] == 'masv':
-        executeMASV(db, args.start, args.stop, args.compute)
+        executeMASV(db, args.start, args.stop)
     elif len(args.experiment) == 1 and args.experiment[0] == 'bvc':
         if args.postProcess:
             postProcessBVC(db)
         else:
-            executeBVC(db, args.start, args.stop, args.compute)
+            executeBVC(db, args.start, args.stop)
     else:
         execute(db, args.start, args.stop, [' '.join(args.experiment)],
                 args.numPlayers, args.initialCash, args.numTurns,
-                args.ops, args.fops, args.compute)
+                args.ops, args.fops)
