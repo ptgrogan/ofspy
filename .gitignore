@@ -3,3 +3,6 @@ ofspy.komodoproject
 bin/hosts
 bin/lp_debug.txt
 data/
+*.bat
+*.png
+*.csv

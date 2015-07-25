@@ -27,9 +27,6 @@ from scoop import futures
 
 import pymongo
 from bson.code import Code
-DB_HOST = "192.168.0.106"
-DB_PORT = 27017
-db = pymongo.MongoClient(DB_HOST, DB_PORT).ofs
 
 import csv
 import numpy as np
@@ -270,33 +267,40 @@ def execute(start, stop, cases, numPlayers,
             print result
 
 def queryCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
-    doc = db.results.find_one({'elements': ' '.join(elements),
-                               'numPlayers':numPlayers,
-                               'initialCash':initialCash,
-                               'numTurns':numTurns,
-                               'seed':seed,
-                               'ops':ops,
-                               'fops': fops})
-    if doc is None:
-        results = executeCase((elements, numPlayers, initialCash, 
-                               numTurns, seed, ops, fops))
-        db.results.insert_one({'elements': ' '.join(elements),
-                               'numPlayers':numPlayers,
-                               'initialCash':initialCash,
-                               'numTurns':numTurns,
-                               'seed':seed,
-                               'ops':ops,
-                               'fops': fops,
-                               'results': results})
+    if db is None:
+        return executeCase((elements, numPlayers, initialCash,
+                            numTurns, seed, ops, fops))
     else:
-        results = [tuple(result) for result in doc[u'results']]
-    return results
+        doc = db.results.find_one({'elements': ' '.join(elements),
+                                   'numPlayers':numPlayers,
+                                   'initialCash':initialCash,
+                                   'numTurns':numTurns,
+                                   'seed':seed,
+                                   'ops':ops,
+                                   'fops': fops})
+        if doc is None:
+            results = executeCase((elements, numPlayers, initialCash, 
+                                   numTurns, seed, ops, fops))
+            db.results.insert_one({'elements': ' '.join(elements),
+                                   'numPlayers':numPlayers,
+                                   'initialCash':initialCash,
+                                   'numTurns':numTurns,
+                                   'seed':seed,
+                                   'ops':ops,
+                                   'fops': fops,
+                                   'results': results})
+        else:
+            results = [tuple(result) for result in doc[u'results']]
+        return results
 
 def executeCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
     return OFS(elements=elements, numPlayers=numPlayers, initialCash=initialCash,
                numTurns=numTurns, seed=seed, ops=ops, fops=fops).execute()
 
 def postProcessBVC():
+    if db is None:
+        logging.error('DB host required for post-processing.')
+        return
     # code below based on from https://gist.github.com/RedBeard0531/1886960
     ppMap = Code(
         "function() {" +
@@ -618,7 +622,9 @@ def postProcessBVC():
     
 
 def postProcessMASV():
-    pass
+    if db is None:
+        logging.error('DB host required for post-processing.')
+        return
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="This program runs an OFS experiment.")
@@ -646,6 +652,10 @@ if __name__ == '__main__':
                         help='computing mode')
     parser.add_argument('--postProcess', action='store_true',
                         help='post-process results')
+    parser.add_argument('--dbHost', type=str, default=None,
+                        help='database host')
+    parser.add_argument('--dbPort', type=int, default=27017,
+                        help='database port')
     
     args = parser.parse_args()
     if args.logging == 'debug':
@@ -657,6 +667,10 @@ if __name__ == '__main__':
     elif args.logging == 'error':
         level = logging.ERROR
     logging.basicConfig(level=level)
+    
+    db = None
+    if args.dbHost is not None:
+        db = pymongo.MongoClient(args.dbHost, args.dbPort).ofs
     
     if len(args.experiment) == 1 and args.experiment[0] == 'masv':
         executeMASV(args.start, args.stop, args.compute)
