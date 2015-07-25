@@ -217,8 +217,8 @@ def enumMASV():
     out.sort(sortBySize)
     return out
 
-def executeMASV(db, start, stop):
-    execute(db, start, stop, enumMASV(), 2, 0, 24, 'd6,a,1', 'x50,25,6,a,1')
+def executeMASV(dbHost, dbPort, start, stop):
+    execute(dbHost, dbPort, start, stop, enumMASV(), 2, 0, 24, 'd6,a,1', 'x50,25,6,a,1')
 
 def enumBVC():
     out = list(set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'pSGL','pISL'))
@@ -236,12 +236,12 @@ def enumBVC():
     out.sort(sortBySize)
     return out
 
-def executeBVC(db, start, stop):
-    execute(db, start, stop, enumBVC(), 2, 0, 24, 'n', 'd6,a,1')
+def executeBVC(dbHost, dbPort, start, stop):
+    execute(dbHost, dbPort, start, stop, enumBVC(), 2, 0, 24, 'n', 'd6,a,1')
 
-def execute(db, start, stop, cases, numPlayers,
+def execute(dbHost, dbPort, start, stop, cases, numPlayers,
             initialCash, numTurns, ops, fops):
-    executions = [(db, [e for e in elements.split(' ') if e != ''],
+    executions = [(dbHost, dbPort, [e for e in elements.split(' ') if e != ''],
         numPlayers, initialCash, numTurns, seed, ops, fops)
         for (seed, elements) in itertools.product(range(start, stop), cases)]
     numComplete = 0.0
@@ -250,11 +250,12 @@ def execute(db, start, stop, cases, numPlayers,
     for result in futures.map(queryCase, executions):
         print result
 
-def queryCase((db, elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
-    if db is None:
+def queryCase((dbHost, dbPort, elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
+    if dbHost is None:
         return executeCase((elements, numPlayers, initialCash,
                             numTurns, seed, ops, fops))
     else:
+        db = pymongo.MongoClient(dbHost, dbPort).ofs
         doc = db.results.find_one({'elements': ' '.join(elements),
                                    'numPlayers':numPlayers,
                                    'initialCash':initialCash,
@@ -318,15 +319,12 @@ if __name__ == '__main__':
         level = logging.ERROR
     logging.basicConfig(level=level)
     
-    db = None
-    if args.dbHost is not None:
-        db = pymongo.MongoClient(args.dbHost, args.dbPort).ofs
-    
     if len(args.experiment) == 1 and args.experiment[0] == 'masv':
-        executeMASV(db, args.start, args.stop)
+        executeMASV(args.dbHost, args.dbPort, args.start, args.stop)
     elif len(args.experiment) == 1 and args.experiment[0] == 'bvc':
-        executeBVC(db, args.start, args.stop)
+        executeBVC(args.dbHost, args.dbPort, args.start, args.stop)
     else:
-        execute(db, args.start, args.stop, [' '.join(args.experiment)],
+        execute(args.dbHost, args.dbPort, args.start, args.stop,
+                [' '.join(args.experiment)],
                 args.numPlayers, args.initialCash, args.numTurns,
                 args.ops, args.fops)
