@@ -224,8 +224,8 @@ def enumMASV():
     out.sort(sortBySize)
     return out
 
-def executeMASV(start, stop, compute):
-    execute(start, stop, enumMASV(), 2, 0, 24, 'd6,a,1', 'x50,25,6,a,1', compute)
+def executeMASV(db, start, stop, compute):
+    execute(db, start, stop, enumMASV(), 2, 0, 24, 'd6,a,1', 'x50,25,6,a,1', compute)
 
 def enumBVC():
     out = list(set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'pSGL','pISL'))
@@ -243,12 +243,12 @@ def enumBVC():
     out.sort(sortBySize)
     return out
 
-def executeBVC(start, stop, compute):
-    execute(start, stop, enumBVC(), 2, 0, 24, 'n', 'd6,a,1', compute)
+def executeBVC(db, start, stop, compute):
+    execute(db, start, stop, enumBVC(), 2, 0, 24, 'n', 'd6,a,1', compute)
 
-def execute(start, stop, cases, numPlayers,
+def execute(db, start, stop, cases, numPlayers,
             initialCash, numTurns, ops, fops, compute):
-    executions = [([e for e in elements.split(' ') if e != ''],
+    executions = [(db, [e for e in elements.split(' ') if e != ''],
         numPlayers, initialCash, numTurns, seed, ops, fops)
         for (seed, elements) in itertools.product(range(start, stop), cases)]
     numComplete = 0.0
@@ -266,7 +266,7 @@ def execute(start, stop, cases, numPlayers,
         for result in futures.map(queryCase, executions):
             print result
 
-def queryCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
+def queryCase((db, elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
     if db is None:
         return executeCase((elements, numPlayers, initialCash,
                             numTurns, seed, ops, fops))
@@ -297,7 +297,7 @@ def executeCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
     return OFS(elements=elements, numPlayers=numPlayers, initialCash=initialCash,
                numTurns=numTurns, seed=seed, ops=ops, fops=fops).execute()
 
-def postProcessBVC():
+def postProcessBVC(db):
     if db is None:
         logging.error('DB host required for post-processing.')
         return
@@ -621,7 +621,7 @@ def postProcessBVC():
             print 'id ' + '%0d'%id + ': ' + elements[id==id].tostring()
     
 
-def postProcessMASV():
+def postProcessMASV(db):
     if db is None:
         logging.error('DB host required for post-processing.')
         return
@@ -673,13 +673,13 @@ if __name__ == '__main__':
         db = pymongo.MongoClient(args.dbHost, args.dbPort).ofs
     
     if len(args.experiment) == 1 and args.experiment[0] == 'masv':
-        executeMASV(args.start, args.stop, args.compute)
+        executeMASV(db, args.start, args.stop, args.compute)
     elif len(args.experiment) == 1 and args.experiment[0] == 'bvc':
         if args.postProcess:
-            postProcessBVC()
+            postProcessBVC(db)
         else:
-            executeBVC(args.start, args.stop, args.compute)
+            executeBVC(db, args.start, args.stop, args.compute)
     else:
-        execute(args.start, args.stop, [' '.join(args.experiment)],
+        execute(db, args.start, args.stop, [' '.join(args.experiment)],
                 args.numPlayers, args.initialCash, args.numTurns,
                 args.ops, args.fops, args.compute)
