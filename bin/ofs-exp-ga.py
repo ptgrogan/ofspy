@@ -17,7 +17,7 @@ limitations under the License.
 import sys,os
 # add ofspy to system path
 sys.path.append(os.path.abspath('..'))
-    
+
 import argparse
 import itertools
 import logging
@@ -25,7 +25,6 @@ import logging
 from scoop import futures
 
 import pymongo
-db = None # lazy-load if required
 
 from ofspy.ofs import OFS
 
@@ -39,8 +38,54 @@ from deap import creator
 from deap import tools
 import csv
 
-prototypes = None # lazy-load if required
+parser = argparse.ArgumentParser(description="This program runs an OFS generic algorithm.")
+parser.add_argument('-d', '--numTurns', type=int, default=24,
+                    help='simulation duration (number of turns)')
+parser.add_argument('-o', '--ops', type=str, default='n',
+                    help='federate operations model specification')
+parser.add_argument('-f', '--fops', type=str, default='d6,a,1',
+                    help='federation operations model specification')
+parser.add_argument('-l', '--logging', type=str, default='error',
+                    choices=['debug','info','warning','error'],
+                    help='logging level')
+parser.add_argument('-s', '--seed', type=int, default=0,
+                    help='random number seed')
+parser.add_argument('-N', '--numExecutions', type=int, default=10,
+                    help='number of executions per design')
+parser.add_argument('-g', '--numGenerations', type=int, default=20,
+                    help='number of generations')
+parser.add_argument('-n', '--maxSatsEach', type=int, default=2,
+                    help='maximum satellites per player')
+parser.add_argument('-c', '--maxCost', type=int, default=4000,
+                    help='maximum total cost')
+parser.add_argument('-x', '--probCross', type=float, default=0.5,
+                    help='probability of crossing')
+parser.add_argument('-m', '--probMutate', type=float, default=0.2,
+                    help='probability of mutation')
+parser.add_argument('-p', '--initPopulation', type=int, default=200,
+                    help='initial population')
+parser.add_argument('--dbHost', type=str, default=None,
+                    help='database host')
+parser.add_argument('--dbPort', type=int, default=27017,
+                    help='database port')
+
+args = parser.parse_args()
+if args.logging == 'debug':
+    level = logging.DEBUG
+elif args.logging == 'info':
+    level = logging.INFO
+elif args.logging == 'warning':
+    level = logging.WARNING
+elif args.logging == 'error':
+    level = logging.ERROR
+logging.basicConfig(level=level)
+
     
+if args.dbHost is None:
+    db = None
+else:
+    db = pymongo.MongoClient(dbHost, dbPort).ofs
+
 def enumSatellites(player, capacity, orbit, sector, sgl, isl):
     size = ''
     if capacity == 2:
@@ -94,15 +139,32 @@ def enum1x1Sats(player, sector, sgl, isl):
     out.sort(sortBySize)
     return out
 
-def queryCase((dbHost, dbPort, dbName, elements, numPlayers,
-               initialCash, numTurns, seed, ops, fops)):
+prototypes = ['']
+prototypes.extend(enum1x1Sats(1,1,'pSGL','pISL'))
+prototypes.extend(enum1x1Sats(1,1,'pSGL','oISL'))
+prototypes.extend(enum1x1Sats(1,1,'oSGL','pISL'))
+prototypes.extend(enum1x1Sats(1,1,'oSGL','oISL'))
+prototypes.sort(sortBySize)
+    
+creator.create("FitnessMax", base.Fitness, weights=(-1.0,1.0))
+creator.create("Individual", list, fitness=creator.FitnessMax)
+
+toolbox = base.Toolbox()
+toolbox.register("attr_sat", random.randint,
+                 0, len(prototypes)-1)
+toolbox.register("individual", tools.initRepeat,
+                 creator.Individual, toolbox.attr_sat,
+                 2*args.maxSatsEach)
+toolbox.register("population", tools.initRepeat,
+                 list, toolbox.individual)
+
+def queryCase((elements, numPlayers, initialCash,
+               numTurns, seed, ops, fops)):
     global db
     
-    if db is None and dbHost is None:
+    if db is None:
         return executeCase((elements, numPlayers, initialCash,
                             numTurns, seed, ops, fops))
-    elif db is None and dbHost is not None:
-        db = pymongo.MongoClient(dbHost, dbPort).ofs
         
     query = {u'elements': ' '.join(elements),
              u'numPlayers':numPlayers,
@@ -111,25 +173,19 @@ def queryCase((dbHost, dbPort, dbName, elements, numPlayers,
              u'seed':seed,
              u'ops':ops,
              u'fops': fops}
-    doc = None
-    if dbName is not None:
-        doc = db[dbName].find_one(query)
+    doc = db.results.find_one(query)
     if doc is None:
-        doc = db.results.find_one(query)
-        if doc is None:
-            results = executeCase((elements, numPlayers, initialCash, 
-                                   numTurns, seed, ops, fops))
-            doc = {u'elements': ' '.join(elements),
-                   u'numPlayers':numPlayers,
-                   u'initialCash':initialCash,
-                   u'numTurns':numTurns,
-                   u'seed':seed,
-                   u'ops':ops,
-                   u'fops': fops,
-                   u'results': results}
-            db.results.insert_one(doc)
-        if dbName is not None:
-            db[dbName].insert_one(doc)
+        results = executeCase((elements, numPlayers, initialCash, 
+                               numTurns, seed, ops, fops))
+        doc = {u'elements': ' '.join(elements),
+               u'numPlayers':numPlayers,
+               u'initialCash':initialCash,
+               u'numTurns':numTurns,
+               u'seed':seed,
+               u'ops':ops,
+               u'fops': fops,
+               u'results': results}
+        db.results.insert_one(doc)
     return [tuple(result) for result in doc[u'results']]
 
 def executeCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
@@ -174,17 +230,19 @@ def getIndividual(individual, maxSatsEach):
     return '{} {}'.format(' '.join(satellites),
                           ' '.join(stations))
 
-def evalIndividual(individual, numTurns, ops, fops, maxSatsEach, maxCost):
-    result = executeCase((
-        [e for e in getIndividual(individual, maxSatsEach).split(' ') if e != ''],
-        2, 0, numTurns, 0, ops, fops))
-    #costs = [sum(r[0] for r in result) for result in results]
-    #values = [sum(r[1] for r in result) for result in results]
-    #netValues = [sum(r[1] - r[0] for r in result)
-    #                 for result in results]
-    costs = [sum(r[0] for r in result)]
-    values = [sum(r[1] for r in result)]
-    netValues = [sum(r[1] - r[0] for r in result)]
+def evalIndividual(individual, numTurns, ops, fops,
+                   maxSatsEach, maxCost, numExecutions):
+    elements = [e for e in getIndividual(
+        individual, maxSatsEach).split(' ') if e != '']
+    results = []
+    for seed in range(numExecutions):
+        results.append(queryCase((elements, 2, 0, numTurns,
+                                  seed, ops, fops)))
+    
+    costs = [sum(r[0] for r in result) for result in results]
+    values = [sum(r[1] for r in result) for result in results]
+    netValues = [sum(r[1] - r[0] for r in result)
+                     for result in results]
     expCost = sum(costs)/len(costs)
     expValue = sum(values)/len(values)
     if expCost > maxCost:
@@ -192,43 +250,23 @@ def evalIndividual(individual, numTurns, ops, fops, maxSatsEach, maxCost):
     else:
         return expCost, expValue
 
-def executeGA(dbHost, dbPort, numTurns, ops, fops, maxSatsEach,
-              maxCost, numGenerations, probCross, probMutate,
-              initPopulation, seed):
-    global prototypes
-    
-    if prototypes is None:
-        prototypes = ['']
-        prototypes.extend(enum1x1Sats(1,1,'pSGL','pISL'))
-        prototypes.extend(enum1x1Sats(1,1,'pSGL','oISL'))
-        prototypes.extend(enum1x1Sats(1,1,'oSGL','pISL'))
-        prototypes.extend(enum1x1Sats(1,1,'oSGL','oISL'))
-        prototypes.sort(sortBySize)
-        
+toolbox.register("evaluate", partial(evalIndividual,
+                                     numTurns=args.numTurns,
+                                     ops=args.ops,
+                                     fops=args.fops,
+                                     maxSatsEach=args.maxSatsEach,
+                                     maxCost=args.maxCost,
+                                     numExecutions=args.numExecutions))
+toolbox.register("mate", tools.cxTwoPoint)
+toolbox.register("mutate", tools.mutUniformInt,
+                 low=0, up=len(prototypes)-1, indpb=0.05)
+toolbox.register("select", tools.selNSGA2)
+toolbox.register("map", futures.map)
+
+def executeGA(numTurns, ops, fops, maxSatsEach, maxCost,
+              numGenerations, probCross, probMutate,
+              initPopulation, seed):        
     random.seed(seed)
-    
-    creator.create("FitnessMax", base.Fitness, weights=(-1.0,1.0))
-    creator.create("Individual", list, fitness=creator.FitnessMax)
-    
-    toolbox = base.Toolbox()
-    toolbox.register("attr_sat", random.randint,
-                     0, len(prototypes)-1)
-    toolbox.register("individual", tools.initRepeat,
-                     creator.Individual, toolbox.attr_sat,
-                     2*maxSatsEach)
-    toolbox.register("population", tools.initRepeat,
-                     list, toolbox.individual)
-    toolbox.register("evaluate", partial(evalIndividual,
-                                         numTurns=numTurns,
-                                         ops=ops,
-                                         fops=fops,
-                                         maxSatsEach=maxSatsEach,
-                                         maxCost=maxCost))
-    toolbox.register("mate", tools.cxTwoPoint)
-    toolbox.register("mutate", tools.mutUniformInt,
-                     low=0, up=len(prototypes)-1, indpb=0.05)
-    toolbox.register("select", tools.selNSGA2)
-    toolbox.register("map", futures.map)
     
     pop = toolbox.population(n=initPopulation)
     hof = tools.ParetoFront()
@@ -242,9 +280,9 @@ def executeGA(dbHost, dbPort, numTurns, ops, fops, maxSatsEach,
                               mutpb=probMutate, ngen=numGenerations,
                               stats=stats, halloffame=hof, verbose=True)
     print 'Pareto Front:'
-    print '{0:12} {1:12} {2}'.format("Exp. Cost", "Exp. Value", "Definition")
+    print '{0:>12} {1:>12} {2}'.format("Exp. Cost", "Exp. Value", "Definition")
     for individual in hof:
-        print "{0:12.1f},{1:12.1f},{2}\n".format(
+        print "{0:12.1f} {1:12.1f} {2}\n".format(
             individual.fitness.values[0], 
             individual.fitness.values[1], 
             getIndividual(individual, maxSatsEach))
@@ -259,52 +297,8 @@ def executeGA(dbHost, dbPort, numTurns, ops, fops, maxSatsEach,
                              individual.fitness.values[0] - 
                              individual.fitness.values[1]])
     
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="This program runs an OFS generic algorithm.")
-    parser.add_argument('experiment', type=str, nargs='+',
-                        help='the experiment to run: masv or bvc')
-    parser.add_argument('-d', '--numTurns', type=int, default=24,
-                        help='simulation duration (number of turns)')
-    parser.add_argument('-o', '--ops', type=str, default='d6',
-                        help='federate operations model specification')
-    parser.add_argument('-f', '--fops', type=str, default='',
-                        help='federation operations model specification')
-    parser.add_argument('-l', '--logging', type=str, default='error',
-                        choices=['debug','info','warning','error'],
-                        help='logging level')
-    parser.add_argument('-s', '--seed', type=int, default=0,
-                        help='random number seed')
-    parser.add_argument('-g', '--numGenerations', type=int, default=20,
-                        help='number of generations')
-    parser.add_argument('-n', '--maxSatsEach', type=int, default=2,
-                        help='maximum satellites per player')
-    parser.add_argument('-c', '--maxCost', type=int, default=4000,
-                        help='maximum total cost')
-    parser.add_argument('-x', '--probCross', type=float, default=0.5,
-                        help='probability of crossing')
-    parser.add_argument('-m', '--probMutate', type=float, default=0.2,
-                        help='probability of mutation')
-    parser.add_argument('-p', '--initPopulation', type=int, default=200,
-                        help='initial population')
-    parser.add_argument('--dbHost', type=str, default=None,
-                        help='database host')
-    parser.add_argument('--dbPort', type=int, default=27017,
-                        help='database port')
-    
-    args = parser.parse_args()
-    if args.logging == 'debug':
-        level = logging.DEBUG
-    elif args.logging == 'info':
-        level = logging.INFO
-    elif args.logging == 'warning':
-        level = logging.WARNING
-    elif args.logging == 'error':
-        level = logging.ERROR
-    logging.basicConfig(level=level)
-    
-    if len(args.experiment) == 1 and args.experiment[0] == 'ga':
-        executeGA(args.dbHost, args.dbPort, args.numTurns,
-                  args.ops, args.fops, args.maxSatsEach,
-                  args.maxCost, args.numGenerations,
-                  args.probCross, args.probMutate,
-                  args.initPopulation, args.seed)
+if __name__ == '__main__':    
+    executeGA(args.numTurns, args.ops, args.fops,
+              args.maxSatsEach, args.maxCost,
+              args.numGenerations, args.probCross,
+              args.probMutate, args.initPopulation, args.seed)
