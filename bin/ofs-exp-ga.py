@@ -401,7 +401,6 @@ def executeGA(numTurns, ops, fops, maxSatsEach, maxCost,
     hof = tools.ParetoFront()
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", np.mean, axis=0)
-    stats.register("std", np.std, axis=0)
     stats.register("min", np.min, axis=0)
     stats.register("max", np.max, axis=0)
     
