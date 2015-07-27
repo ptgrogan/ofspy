@@ -99,14 +99,6 @@ class OFS(object):
                 federate.liquidate(self.context)
                 logging.info('{} final cash: {}'
                             .format(federate.name, federate.cash))
-                logging.info('{} ROI: {:.2f}'
-                            .format(federate.name, (float(federate.cash)/federate.initialCash)
-                                    if federate.initialCash != 0 else 0))
-                logging.info('{} %ROI/turn: {:.2%}'
-                            .format(federate.name, (math.pow(float(federate.cash)
-                                                             /federate.initialCash,
-                                                             1./self.sim.maxTime)-1)
-                                    if federate.initialCash != 0 else 0))
         self.sim.on('init', initializeGame)
         self.sim.on('complete', finalizeGame)
     
