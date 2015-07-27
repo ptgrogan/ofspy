@@ -222,20 +222,22 @@ def queryCase((elements, numPlayers, initialCash,
              u'seed':seed,
              u'ops':ops,
              u'fops': fops}
-    doc = db.results.find_one(query)
+    doc = db.ga.find_one(query)
     if doc is None:
-        results = executeCase((elements, numPlayers, initialCash, 
-                               numTurns, seed, ops, fops))
-        doc = {u'elements': ' '.join(elements),
-               u'numPlayers':numPlayers,
-               u'initialCash':initialCash,
-               u'numTurns':numTurns,
-               u'seed':seed,
-               u'ops':ops,
-               u'fops': fops,
-               u'results': results}
+        doc = db.results.find_one(query)
+        if doc is None:
+            results = executeCase((elements, numPlayers, initialCash, 
+                                   numTurns, seed, ops, fops))
+            doc = {u'elements': ' '.join(elements),
+                   u'numPlayers':numPlayers,
+                   u'initialCash':initialCash,
+                   u'numTurns':numTurns,
+                   u'seed':seed,
+                   u'ops':ops,
+                   u'fops': fops,
+                   u'results': results}
+            db.results.insert_one(doc)
         db.ga.insert_one(doc)
-        db.results.insert_one(doc)
     return [tuple(result) for result in doc[u'results']]
 
 def executeCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
