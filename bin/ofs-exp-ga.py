@@ -234,6 +234,7 @@ def queryCase((elements, numPlayers, initialCash,
                u'ops':ops,
                u'fops': fops,
                u'results': results}
+        db.ga.insert_one(doc)
         db.results.insert_one(doc)
     return [tuple(result) for result in doc[u'results']]
 
@@ -311,7 +312,7 @@ def getIndividual(individual, maxSatsEach):
             p2Station += ',oSGL'
     stations.append(p2Station)
     
-    return '{} {}'.format(' '.join(satellites),
+    return '{} {}'.format(' '.join([s for s in satellites if s != '']),
                           ' '.join(stations))
 
 def evalIndividual(individual, numTurns, ops, fops,
@@ -391,6 +392,9 @@ def executeGA(numTurns, ops, fops, maxSatsEach, maxCost,
     @param seed: the random number seed
     @type seed: L{int}
     """
+    global db
+    db.ga.delete_many({}) # clear old results from ga
+    
     random.seed(seed)
     
     pop = toolbox.population(n=initPopulation)

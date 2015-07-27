@@ -27,7 +27,7 @@ import sys,os
 # add ofspy to system path
 sys.path.append(os.path.abspath('..'))
 
-def mapReduce(db, dbName):
+def mapReduce(db, dbName, query=None):
     """
     Performs a map-reduce operation on a database.
     @param db: the database
@@ -102,8 +102,12 @@ def mapReduce(db, dbName):
         "  value.totStdErr = value.totStdDev / Math.sqrt(value.count);" +
         "  return value;"+
         "}")
-    db[dbName].map_reduce(ppMap, ppReduce, '{}_pp'.format(dbName),
-                          finalize=ppFinalize)
+    if query is None:
+        db[dbName].map_reduce(ppMap, ppReduce, '{}_pp'.format(dbName),
+                              finalize=ppFinalize)
+    else:
+        db[dbName].map_reduce(ppMap, ppReduce, '{}_pp'.format(dbName),
+                              query=query, finalize=ppFinalize)
 
 def processData(db, dbName):
     """
@@ -390,7 +394,7 @@ def postProcessMASV(db):
         tradespaceCentralized('masv-c', id, 
             p1Cost, p1ExpValue, p1ValueStdErr,
             pisl, oisl, osgl)
-    
+
 def postProcessBVC(db):
     """
     Performs post-processing for the bounding value of collaboration experiment.
@@ -482,7 +486,7 @@ def postProcessBVC(db):
     plt.legend(['Independent Pareto Frontier ($V_i$)','Centralized Pareto Frontier, FSS Success ($V_c$)','Centralized Pareto Frontier, FSS Failure  ($V_x$)'],loc='upper left')
     plt.grid()
     plt.gcf().set_size_inches(6.5, 3.5)
-    plt.savefig('tsc-bvc.png', bbox_inches='tight', dpi=300)
+    plt.savefig('ts-bvc.png', bbox_inches='tight', dpi=300)
     
     initialCost = 2000
     
@@ -518,11 +522,85 @@ def postProcessBVC(db):
             print '===centralized (failed) case==='
             print 'cost: ' + '%.0f'%c_cost[i] + ', value: ' + '%.0f'%x_value[i]
             print 'id ' + '%0d'%id + ': ' + elements[id==id].tostring()
+
+def postProcessGA(db):
+    """
+    Performs post-processing for genetic algorithm experiment.
+    @param db: the database
+    @type db: L{Database}
+    """
+    mapReduce(db, 'ga')
+    (id, elements, p1Cost, p2Cost, totCost,
+     p1ValueStdErr, p2ValueStdErr, totValueStdErr, 
+     p1ValueAvg, p2ValueAvg, totValueAvg,
+     p1ExpValue, p2ExpValue, totExpValue, 
+     pisl, oisl, osgl, independent) = processData(db, 'ga')
+    
+    plt.rcParams.update({'axes.labelsize':8,
+                         'font.size':8, 
+                         'font.family':'Times New Roman',
+                         'legend.fontsize':8, 
+                         'xtick.labelsize':8,
+                         'ytick.labelsize':8})
+    if np.size(id) > 0:
+        tradespaceCentralized('ga', id, 
+            totCost/2, totExpValue/2, totValueStdErr/2,
+            pisl, oisl, osgl)
+
+def postProcessAll(db, numTurns=None, numPlayers=None,
+                   initialCash=None, ops=None, fops=None):
+    """
+    Performs post-processing for all experimental results.
+    @param db: the database
+    @type db: L{Database}
+    @param numTurns: the number of turns
+    @type numTurns: L{int}
+    @param numPlayers: the number of players
+    @type numPlayers: L{int}
+    @param initialCash: the initial cash
+    @type initialCash: L{int}
+    @param numTurns: the number of turns
+    @type numTurns: L{int}
+    @param seed: the random number seed
+    @type seed: L{int}
+    @param ops: the operations definition
+    @type ops: L{str}
+    @param fops: the federation operations definition
+    @type fops: L{str}
+    """
+    query = {}
+    if numTurns is not None:
+        query['numTurns'] = numTurns
+    if numPlayers is not None:
+        query['numPlayers'] = numPlayers
+    if initialCash is not None:
+        query['initialCash'] = initialCash
+    if ops is not None:
+        query['ops'] = ops
+    if fops is not None:
+        query['fops'] = fops
+    mapReduce(db, 'results', query=query if query != {} else None)
+    (id, elements, p1Cost, p2Cost, totCost,
+     p1ValueStdErr, p2ValueStdErr, totValueStdErr, 
+     p1ValueAvg, p2ValueAvg, totValueAvg,
+     p1ExpValue, p2ExpValue, totExpValue, 
+     pisl, oisl, osgl, independent) = processData(db, 'results')
+    
+    plt.rcParams.update({'axes.labelsize':8,
+                         'font.size':8, 
+                         'font.family':'Times New Roman',
+                         'legend.fontsize':8, 
+                         'xtick.labelsize':8,
+                         'ytick.labelsize':8})
+    if np.size(id) > 0:
+        tradespaceCentralized('results', id, 
+            totCost/2, totExpValue/2, totValueStdErr/2,
+            pisl, oisl, osgl)
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="This program post-processes an OFS experiment.")
-    parser.add_argument('experiment', type=str, nargs='+',
-                        help='the experiment to run: masv or bvc')
+    parser.add_argument('experiment', type=str,
+                        help='the experiment to run: masv, bvc, ga, or all')
     parser.add_argument('-l', '--logging', type=str, default='error',
                         choices=['debug','info','warning','error'],
                         help='logging level')
@@ -530,6 +608,16 @@ if __name__ == '__main__':
                         help='database host')
     parser.add_argument('--dbPort', type=int, default=27017,
                         help='database port')
+    parser.add_argument('-d', '--numTurns', type=int, default=None,
+                        help='filter for all experiments: simulation duration (number of turns)')
+    parser.add_argument('-p', '--numPlayers', type=int, default=None,
+                        help='filter for all experiments: number of players')
+    parser.add_argument('-i', '--initialCash', type=int, default=None,
+                        help='filter for all experiments: initial cash')
+    parser.add_argument('-o', '--ops', type=str, default=None,
+                        help='filter for all experiments: federate operations model specification')
+    parser.add_argument('-f', '--fops', type=str, default=None,
+                        help='filter for all experiments: federation operations model specification')
     
     args = parser.parse_args()
     if args.logging == 'debug':
@@ -544,7 +632,12 @@ if __name__ == '__main__':
     
     db = pymongo.MongoClient(args.dbHost, args.dbPort).ofs
     
-    if len(args.experiment) == 1 and args.experiment[0] == 'masv':
+    if args.experiment == 'masv':
         postProcessMASV(db)
-    elif len(args.experiment) == 1 and args.experiment[0] == 'bvc':
+    elif args.experiment == 'bvc':
         postProcessBVC(db)
+    elif args.experiment == 'ga':
+        postProcessGA(db)
+    else:
+        postProcessAll(db, args.numTurns, args.numPlayers,
+                       args.initialCash, args.ops, args.fops)
