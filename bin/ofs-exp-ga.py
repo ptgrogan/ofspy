@@ -84,7 +84,7 @@ logging.basicConfig(level=level)
 if args.dbHost is None:
     db = None
 else:
-    db = pymongo.MongoClient(dbHost, dbPort).ofs
+    db = pymongo.MongoClient(args.dbHost, args.dbPort).ofs
 
 def enumSatellites(player, capacity, orbit, sector, sgl, isl):
     size = ''
