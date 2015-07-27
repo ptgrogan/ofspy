@@ -348,7 +348,7 @@ def evalIndividual(individual, numTurns, ops, fops,
     expCost = sum(costs)/len(costs)
     expValue = sum(values)/len(values)
     if expCost > maxCost:
-        return 1e6, 0
+        return maxCost, 0
     else:
         return expCost, expValue
 
