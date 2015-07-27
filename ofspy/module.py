@@ -34,8 +34,8 @@ class Module(Entity):
         self.cost = cost
         self.size = size
         self.capacity = capacity
-        self.data = []
         self._initData = []
+        self.data = self._initData[:]
     
     def getContentsSize(self):
         """
@@ -205,7 +205,7 @@ class Module(Entity):
         @type sim: L{Simulator}
         """
         super(Module, self).init(sim)
-        self.data = self._initData
+        self.data = self._initData[:]
     
     def tock(self):
         """

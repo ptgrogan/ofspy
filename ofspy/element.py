@@ -45,7 +45,7 @@ class Element(Entity):
         if modules is None:
             self._initModules = []
         else:
-            self._initModules = modules
+            self._initModules = modules[:]
         self.modules = self._initModules
     
     def getContentsSize(self):
@@ -639,7 +639,7 @@ class Element(Entity):
         """
         super(Element, self).init(sim)
         self.location = self._initLocation
-        self.modules = self._initModules
+        self.modules = self._initModules[:]
         for module in self.modules:
             module.init(sim)
     

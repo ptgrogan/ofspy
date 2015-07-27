@@ -38,7 +38,7 @@ class Federation(Controller):
             self._initFederates = []
         else:
             self._initFederates = federates
-        self.federates = self._initFederates
+        self.federates = self._initFederates[:]
         self.operations = operations
     
     def getElements(self):
@@ -104,7 +104,7 @@ class Federation(Controller):
         @param sim: the simulator
         """
         super(Federation, self).init(sim)
-        self.federates = self._initFederates
+        self.federates = self._initFederates[:]
         for federate in self.federates:
             federate.init(sim)
     

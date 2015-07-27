@@ -45,12 +45,12 @@ class Federate(Controller):
         if elements is None:
             self._initElements = []
         else:
-            self._initElements = elements
+            self._initElements = elements[:]
         self.elements = self._initElements
         if contracts is None:
             self._initContracts = []
         else:
-            self._initContracts = contracts
+            self._initContracts = contracts[:]
         self.contracts = self._initContracts
         self.operations = operations
     
@@ -194,10 +194,10 @@ class Federate(Controller):
         """
         super(Federate, self).init(sim)
         self.cash = self.initialCash
-        self.elements = self._initElements
+        self.elements = self._initElements[:]
         for element in self.elements:
             element.init(sim)
-        self.contracts = self._initContracts
+        self.contracts = self._initContracts[:]
         for contract in self.contracts:
             contract.init(sim)
     
