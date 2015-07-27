@@ -14,22 +14,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import sys,os
-# add ofspy to system path
-sys.path.append(os.path.abspath('..'))
-    
 import argparse
 import itertools
 import logging
-
-from scoop import futures
-
 import pymongo
+from scoop import futures
+import sys,os
+# add ofspy to system path
+sys.path.append(os.path.abspath('..'))
+
 db = None # lazy-load if required
 
 from ofspy.ofs import OFS
 
 def enumStations(player, sector, sgl):
+    """
+    Enumerates all station definitions for a set of constraints.
+    @param player: the player who designs the station
+    @type player: L{int}
+    @param sector: the sector in which to commission the station
+    @type sector: L{int}
+    @param sgl: the SGL protocol used by the station
+    @type sgl: L{str}
+    @return: L{str}
+    """
     out = map(lambda mods: '{}.GroundSta@SUR{}{}{}'.format(
         player, sector, 
         ',' if len([i for i in mods if i is not None])>0 else '',
@@ -39,6 +47,18 @@ def enumStations(player, sector, sgl):
     return out
 
 def sizeStation(player, sector, sgl, sats):
+    """
+    Sizes a station for a set of satellites.
+    @param player: the player who designs the station
+    @type player: L{int}
+    @param sector: the sector in which to commission the station
+    @type sector: L{int}
+    @param sgl: the SGL protocol used by the station
+    @type sgl: L{str}
+    @param sats: the satellites served by the station
+    @type sats: L{str}
+    @return: L{str}
+    """
     numSGL = reduce(lambda s,i: max(s, i.count(sgl)), sats, 0)
     for sec in range(1,7):
         numSGL = max(numSGL, reduce(lambda s,i: i.count(sgl),
@@ -48,6 +68,22 @@ def sizeStation(player, sector, sgl, sats):
                 if i.count(sgl) == min(3, numSGL))
     
 def enumSatellites(player, capacity, orbit, sector, sgl, isl):
+    """
+    Enumerates all satellite definitions for a set of constraints.
+    @param player: the player to design the satellite
+    @type player: L{int}
+    @param capacity: the capacity of the satellite for modules
+    @type capacity: L{int}
+    @param orbit: the orbit in which to commission the satellite
+    @type orbit: L{int}
+    @param sector: the sector in which to commission the satellite
+    @type sector: L{int}
+    @param sgl: the SGL protocol used by the satellite
+    @type sgl: L{str}
+    @param isl: the ISL protocol used by the satellite
+    @type isl: L{str}
+    @return: L{str}
+    """
     size = ''
     if capacity == 2:
         size='Small'
@@ -71,6 +107,14 @@ def enumSatellites(player, capacity, orbit, sector, sgl, isl):
     return out
 
 def sortBySize(a, b):
+    """
+    Sorts a set of satellite definitions by size.
+    @param a: a satellite definition
+    @type a: L{str}
+    @param b: a satellite definition
+    @type b: L{str}
+    @return: L{int}
+    """
     if isinstance(a, list) and isinstance(b, list):
         a = " ".join(a)
         b = " ".join(b)
@@ -94,6 +138,18 @@ def sortBySize(a, b):
         return a.count(',') - b.count(',')
 
 def enum1x1Sats(player, sector, sgl, isl):
+    """
+    Enumerates all 1-player, 1-satellite definitions.
+    @param player: the player to design the satellite
+    @type player: L{int}
+    @param sector: the sector in which to commission the satellite
+    @type sector: L{int}
+    @param sgl: the SGL protocol used by the satellite
+    @type sgl: L{str}
+    @param isl: the ISL protocol used by the satellite
+    @type isl: L{str}
+    @return: L{str}
+    """
     out = enumSatellites(player, 2, 'MEO', sector, sgl, isl) \
             + enumSatellites(player, 4, 'MEO', sector, sgl, isl) \
             + enumSatellites(player, 6, 'MEO', sector, sgl, isl)
@@ -101,12 +157,38 @@ def enum1x1Sats(player, sector, sgl, isl):
     return out
 
 def enumBest1x1Sats(player, sector, sgl, isl):
+    """
+    Enumerates best 1-player, 1-satellite definitions.
+    @param player: the player to design the satellite
+    @type player: L{int}
+    @param sector: the sector in which to commission the satellite
+    @type sector: L{int}
+    @param sgl: the SGL protocol used by the satellite
+    @type sgl: L{str}
+    @param isl: the ISL protocol used by the satellite
+    @type isl: L{str}
+    @return: L{str}
+    """
     return [
         '{}.SmallSat@MEO{},SAR,{}'.format(player, sector, sgl),
         '{}.SmallSat@MEO{},VIS,{}'.format(player, sector, sgl)
     ]
 
 def enum1xNSats(number, player, sector, sgl, isl):
+    """
+    Enumerates all 1-player, N-satellite definitions.
+    @param number: the number of satellites
+    @type number: L{int}
+    @param player: the player to design the satellite(s)
+    @type player: L{int}
+    @param sector: the sector in which to commission the first satellite
+    @type sector: L{int}
+    @param sgl: the SGL protocol used by the satellite(s)
+    @type sgl: L{str}
+    @param isl: the ISL protocol used by the satellite(s)
+    @type isl: L{str}
+    @return: L{str}
+    """
     satsSGL = [enumBest1x1Sats(player, (sector-1+(6-i))%6+1, sgl, isl)
                for i in range(number)]
     satsISL = [enum1x1Sats(player, (sector-1+(6-i))%6+1, sgl, isl)
@@ -138,11 +220,39 @@ def enum1xNSats(number, player, sector, sgl, isl):
     return out
 
 def enum1xNSatDesigns(number, player, sector, sgl, isl):
+    """
+    Enumerates all 1-player, N-satellite definitions with sized stations.
+    @param number: the number of satellites
+    @type number: L{int}
+    @param player: the player to design the satellite(s)
+    @type player: L{int}
+    @param sector: the sector in which to commission the first satellite
+    @type sector: L{int}
+    @param sgl: the SGL protocol used by the satellite(s)
+    @type sgl: L{str}
+    @param isl: the ISL protocol used by the satellite(s)
+    @type isl: L{str}
+    @return: L{str}
+    """
     return map(lambda sats: ' '.join([sats, sizeStation(
         player, sector, sgl, sats.split(' '))]),
                enum1xNSats(number, player, (sector-1+(6-1))%6+1, sgl, isl))
 
 def enumPxNSats(number, players, sectors, sgl, isl):
+    """
+    Enumerates all P-player, N-satellite definitions.
+    @param number: the number of satellites
+    @type number: L{int}
+    @param players: the player(s) to design the satellite(s)
+    @type players: L{list}
+    @param sectors: the sector(s) in which to commission the first satellite(s)
+    @type sectors: L{int}
+    @param sgl: the SGL protocol used by the satellite(s)
+    @type sgl: L{str}
+    @param isl: the ISL protocol used by the satellite(s)
+    @type isl: L{str}
+    @return: L{str}
+    """
     sats = [enum1xNSats(number, players[i], sectors[i], sgl, isl)
             for i in range(len(players))]
     
@@ -176,6 +286,20 @@ def enumPxNSats(number, players, sectors, sgl, isl):
     return out
 
 def enumPxNSatDesigns(number, players, sectors, sgl, isl):
+    """
+    Enumerates all P-player, N-satellite definitions with sized stations.
+    @param number: the number of satellites
+    @type number: L{int}
+    @param players: the player(s) to design the satellite(s)
+    @type players: L{list}
+    @param sectors: the sector(s) in which to commission the first satellite(s)
+    @type sectors: L{int}
+    @param sgl: the SGL protocol used by the satellite(s)
+    @type sgl: L{str}
+    @param isl: the ISL protocol used by the satellite(s)
+    @type isl: L{str}
+    @return: L{str}
+    """
     return map(lambda sats: '   '.join(
         [sats, ' '.join(map(lambda i: sizeStation(players[i], sectors[i],
                                          sgl, sats.split('  ')[i].split(' ')),
@@ -184,6 +308,20 @@ def enumPxNSatDesigns(number, players, sectors, sgl, isl):
             map(lambda sector: (sector-1+(6-1))%6+1, sectors), sgl, isl))
 
 def enumSymmetricPxNSats(number, players, sectors, sgl, isl):
+    """
+    Enumerates all symmetric P-player, N-satellite definitions.
+    @param number: the number of satellites
+    @type number: L{int}
+    @param players: the player(s) to design the satellite(s)
+    @type players: L{list}
+    @param sectors: the sector(s) in which to commission the first satellite(s)
+    @type sectors: L{int}
+    @param sgl: the SGL protocol used by the satellite(s)
+    @type sgl: L{str}
+    @param isl: the ISL protocol used by the satellite(s)
+    @type isl: L{str}
+    @return: L{str}
+    """
     sats = [enum1xNSats(number, players[i], sectors[i], sgl, isl)
             for i in range(len(players))]
     out = map(lambda j: '  '.join(map(lambda i: sats[i][j], range(len(players)))),
@@ -194,6 +332,20 @@ def enumSymmetricPxNSats(number, players, sectors, sgl, isl):
     return out
 
 def enumSymmetricPxNSatDesigns(number, players, sectors, sgl, isl):
+    """
+    Enumerates all symmetric P-player, N-satellite definitions with sized stations.
+    @param number: the number of satellites
+    @type number: L{int}
+    @param players: the player(s) to design the satellite(s)
+    @type players: L{list}
+    @param sectors: the sector(s) in which to commission the first satellite(s)
+    @type sectors: L{int}
+    @param sgl: the SGL protocol used by the satellite(s)
+    @type sgl: L{str}
+    @param isl: the ISL protocol used by the satellite(s)
+    @type isl: L{str}
+    @return: L{str}
+    """
     return map(lambda sats: '   '.join(
         [sats, ' '.join(map(lambda i: sizeStation(players[i], sectors[i],
                                          sgl, sats.split('  ')[i].split(' ')),
@@ -202,6 +354,10 @@ def enumSymmetricPxNSatDesigns(number, players, sectors, sgl, isl):
             map(lambda sector: (sector-1+(6-1))%6+1, sectors), sgl, isl))
 
 def enumMASV():
+    """
+    Enumerates designs for the multi-actor system value experiment.
+    @return: L{str}
+    """
     out = map(lambda d: d + " 2.MediumSat@MEO1,VIS,SAR,oSGL,oISL 2.GroundSta@SUR4,oSGL",
                set(enumSymmetricPxNSatDesigns(1,[1],[1],'pSGL','pISL'))
                 | set(enumSymmetricPxNSatDesigns(2,[1],[1],'pSGL','pISL'))
@@ -219,10 +375,25 @@ def enumMASV():
     return out
 
 def executeMASV(dbHost, dbPort, start, stop):
+    """
+    Executes the multi-actor system value experiment.
+    @param dbHost: the database host
+    @type dbHost: L{str}
+    @param dbPort: the database port
+    @type dbPort: L{int}
+    @param start: the starting seed
+    @type start: L{int}
+    @param stop: the stopping seed
+    @type stop: L{int}
+    """
     execute(dbHost, dbPort, 'masv', start, stop,
             enumMASV(), 2, 0, 24, 'd6,a,1', 'x50,25,6,a,1')
 
 def enumBVC():
+    """
+    Enumerates designs for the bounding value of collaboration experiment.
+    @return: L{str}
+    """
     out = list(set(enumSymmetricPxNSatDesigns(1,[1,2],[1,6],'pSGL','pISL'))
                 | set(enumSymmetricPxNSatDesigns(2,[1,2],[1,5],'pSGL','pISL'))
                 | set(enumSymmetricPxNSatDesigns(3,[1,2],[1,4],'pSGL','pISL'))
@@ -239,11 +410,45 @@ def enumBVC():
     return out
 
 def executeBVC(dbHost, dbPort, start, stop):
+    """
+    Executes the bounding value of collaboration experiment.
+    @param dbHost: the database host
+    @type dbHost: L{str}
+    @param dbPort: the database port
+    @type dbPort: L{int}
+    @param start: the starting seed
+    @type start: L{int}
+    @param stop: the stopping seed
+    @type stop: L{int}
+    """
     execute(dbHost, dbPort, 'bvc', start, stop,
             enumBVC(), 2, 0, 24, 'n', 'd6,a,1')
 
 def execute(dbHost, dbPort, dbName, start, stop, cases, numPlayers,
             initialCash, numTurns, ops, fops):
+    """
+    Executes a general experiment.
+    @param dbHost: the database host
+    @type dbHost: L{str}
+    @param dbPort: the database port
+    @type dbPort: L{int}
+    @param start: the starting seed
+    @type start: L{int}
+    @param stop: the stopping seed
+    @type stop: L{int}
+    @param cases: the list of designs to execute
+    @type cases: L{list}
+    @param numPlayers: the number of players
+    @type numPlayers: L{int}
+    @param initialCash: the initial cash
+    @type initialCash: L{int}
+    @param numTurns: the number of turns
+    @type numTurns: L{int}
+    @param ops: the operations definition
+    @type ops: L{str}
+    @param fops: the federation operations definition
+    @type fops: L{str}
+    """
     executions = [(dbHost, dbPort, dbName,
                    [e for e in elements.split(' ') if e != ''],
                    numPlayers, initialCash, numTurns, seed, ops, fops)
@@ -256,6 +461,28 @@ def execute(dbHost, dbPort, dbName, start, stop, cases, numPlayers,
 
 def queryCase((dbHost, dbPort, dbName, elements, numPlayers,
                initialCash, numTurns, seed, ops, fops)):
+    """
+    Queries and retrieves existing results or executes an OFS simulation.
+    @param dbHost: the database host
+    @type dbHost: L{str}
+    @param dbPort: the database port
+    @type dbPort: L{int}
+    @param elements: the design specifications
+    @type elements: L{list}
+    @param numPlayers: the number of players
+    @type numPlayers: L{int}
+    @param initialCash: the initial cash
+    @type initialCash: L{int}
+    @param numTurns: the number of turns
+    @type numTurns: L{int}
+    @param seed: the random number seed
+    @type seed: L{int}
+    @param ops: the operations definition
+    @type ops: L{str}
+    @param fops: the federation operations definition
+    @type fops: L{str}
+    @return: L{list}
+    """
     global db
     
     if db is None and dbHost is None:
@@ -293,6 +520,23 @@ def queryCase((dbHost, dbPort, dbName, elements, numPlayers,
     return [tuple(result) for result in doc[u'results']]
 
 def executeCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
+    """
+    Executes an OFS simulation.
+    @param elements: the design specifications
+    @type elements: L{list}
+    @param numPlayers: the number of players
+    @type numPlayers: L{int}
+    @param initialCash: the initial cash
+    @type initialCash: L{int}
+    @param numTurns: the number of turns
+    @type numTurns: L{int}
+    @param seed: the random number seed
+    @type seed: L{int}
+    @param ops: the operations definition
+    @type ops: L{str}
+    @param fops: the federation operations definition
+    @type fops: L{str}
+    """
     return OFS(elements=elements, numPlayers=numPlayers, initialCash=initialCash,
                numTurns=numTurns, seed=seed, ops=ops, fops=fops).execute()
     

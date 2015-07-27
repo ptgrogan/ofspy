@@ -13,24 +13,28 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
+    
+import argparse
+from bson.code import Code
+import csv
+import itertools
+import logging
+import matplotlib.pyplot as plt
+import numpy as np
+import pymongo
+import re
 import sys,os
 # add ofspy to system path
 sys.path.append(os.path.abspath('..'))
-    
-import argparse
-import itertools
-import logging
-
-import pymongo
-from bson.code import Code
-
-import csv
-import numpy as np
-import re
-import matplotlib.pyplot as plt
 
 def mapReduce(db, dbName):
+    """
+    Performs a map-reduce operation on a database.
+    @param db: the database
+    @type db: L{Database}
+    @param dbName: the database collection name
+    @type dbName: L{str}
+    """
     # code below based on from https://gist.github.com/RedBeard0531/1886960
     ppMap = Code(
         "function() {" +
@@ -102,6 +106,14 @@ def mapReduce(db, dbName):
                           finalize=ppFinalize)
 
 def processData(db, dbName):
+    """
+    Processes data for a database and returns parsed results.
+    @param db: the database
+    @type db: L{Database}
+    @param dbName: the database collection name
+    @type dbName: L{str}
+    @return: L{tuple}
+    """
     id = np.array([])
     elements = np.array([])
     p1Cost = np.array([])
@@ -183,6 +195,16 @@ def processData(db, dbName):
             pisl, oisl, osgl, independent)
     
 def pareto(id, cost, expValue):
+    """
+    Gets the set of non-dominated points.
+    @param id: the design ids
+    @type id: L{ndarray}
+    @param cost: the design costs
+    @type cost: L{ndarray}
+    @param expValue: the design expected values
+    @type expValue: L{ndarray}
+    @return: L{tuple}
+    """
     p_id = np.array([])
     p_cost = np.array([])
     p_value = np.array([])
@@ -194,18 +216,76 @@ def pareto(id, cost, expValue):
     return p_id, p_cost, p_value
 
 def plotTradespaceStep1(c, id, cost, expValue, stdErr):
+    """
+    Plots the error bars for a tradespace of designs.
+    @param c: the color
+    @type c: L{str}
+    @param id: the design ids
+    @type id: L{ndarray}
+    @param cost: the design costs
+    @type cost: L{ndarray}
+    @param expValue: the design expected values
+    @type expValue: L{ndarray}
+    @param stdErr: the design standard errors
+    @type stdErr: L{ndarray}
+    """
     plt.errorbar(cost, expValue, yerr=1.96*stdErr,
                  fmt='none',color=c,ecolor=c, alpha=0.3)
 def plotTradespaceStep2(c, id, cost, expValue):
+    """
+    Plots the points for a tradespace of designs.
+    @param c: the color
+    @type c: L{str}
+    @param id: the design ids
+    @type id: L{ndarray}
+    @param cost: the design costs
+    @type cost: L{ndarray}
+    @param expValue: the design expected values
+    @type expValue: L{ndarray}
+    @param stdErr: the design standard errors
+    @type stdErr: L{ndarray}
+    """
     plt.plot(cost, expValue, ls='', marker='.',
              mec='none',color=c, alpha=0.3)
 def plotTradespaceStep3(c, id, cost, expValue, P_id):
+    """
+    Plots the Pareto frontier for a tradespace of points.
+    @param c: the color
+    @type c: L{str}
+    @param id: the design ids
+    @type id: L{ndarray}
+    @param cost: the design costs
+    @type cost: L{ndarray}
+    @param expValue: the design expected values
+    @type expValue: L{ndarray}
+    @param P_id: the ids of Pareto-optimal designs
+    @type P_id: L{ndarray}
+    """
     p_id, p_cost, p_value = pareto(id, cost, expValue)
     for i in np.intersect1d(P_id, p_id):
         plt.annotate('%0d'%i, xy=(p_cost[p_id==i], p_value[p_id==i]),
                     xytext=(-5,4), textcoords='offset points', size=8, color=c)    
 
 def tradespaceIndependent(label, id, cost, expValue, stdErr, pisl, oisl, osgl):
+    """
+    Creates a tradespace plot for independent designs.
+    @param label: the plot label
+    @type label: L{str}
+    @param id: the design ids
+    @type id: L{ndarray}
+    @param cost: the design costs
+    @type cost: L{ndarray}
+    @param expValue: the design expected values
+    @type expValue: L{ndarray}
+    @param stdErr: the design standard errors
+    @type stdErr: L{ndarray}
+    @param pisl: mask for designs containing pISL modules
+    @type pisl: L{ndarray}
+    @param oisl: mask for designs containing oISL modules
+    @type oisl: L{ndarray}
+    @param osgl: mask for designs containing oSGL modules
+    @type osgl: L{ndarray}
+    """
     plt.clf()
     filters = [np.logical_and.reduce((pisl==False,oisl==False,osgl==False)),
                np.logical_and.reduce((pisl==True,oisl==False,osgl==False))]
@@ -231,6 +311,25 @@ def tradespaceIndependent(label, id, cost, expValue, stdErr, pisl, oisl, osgl):
     plt.savefig('ts-'+label+'.png', bbox_inches='tight', dpi=300)
         
 def tradespaceCentralized(label, id, cost, expValue, stdErr, pisl, oisl, osgl):
+    """
+    Creates a tradespace plot for centralized designs.
+    @param label: the plot label
+    @type label: L{str}
+    @param id: the design ids
+    @type id: L{ndarray}
+    @param cost: the design costs
+    @type cost: L{ndarray}
+    @param expValue: the design expected values
+    @type expValue: L{ndarray}
+    @param stdErr: the design standard errors
+    @type stdErr: L{ndarray}
+    @param pisl: mask for designs containing pISL modules
+    @type pisl: L{ndarray}
+    @param oisl: mask for designs containing oISL modules
+    @type oisl: L{ndarray}
+    @param osgl: mask for designs containing oSGL modules
+    @type osgl: L{ndarray}
+    """
     plt.clf()
     filters = [np.logical_and.reduce((pisl==False,oisl==False,osgl==False)),
                np.logical_and.reduce((pisl==True,oisl==False,osgl==False)),
@@ -261,6 +360,11 @@ def tradespaceCentralized(label, id, cost, expValue, stdErr, pisl, oisl, osgl):
     plt.savefig('ts-'+label+'.png', bbox_inches='tight', dpi=300)
 
 def postProcessMASV(db):
+    """
+    Performs post-processing for the multi-actor system value experiment.
+    @param db: the database
+    @type db: L{Database}
+    """
     mapReduce(db, 'masv')
     (id, elements, p1Cost, p2Cost, totCost,
      p1ValueStdErr, p2ValueStdErr, totValueStdErr, 
@@ -288,6 +392,11 @@ def postProcessMASV(db):
             pisl, oisl, osgl)
     
 def postProcessBVC(db):
+    """
+    Performs post-processing for the bounding value of collaboration experiment.
+    @param db: the database
+    @type db: L{Database}
+    """
     mapReduce(db, 'bvc')
     (id, elements, p1Cost, p2Cost, totCost,
      p1ValueStdErr, p2ValueStdErr, totValueStdErr, 

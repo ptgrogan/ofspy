@@ -14,29 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import sys,os
-# add ofspy to system path
-sys.path.append(os.path.abspath('..'))
-
 import argparse
-import itertools
-import logging
-
-from scoop import futures
-
-import pymongo
-
-from ofspy.ofs import OFS
-
-from functools import partial
-
-import random
-import numpy as np
+import csv
 from deap import algorithms
 from deap import base
 from deap import creator
 from deap import tools
-import csv
+from functools import partial
+import itertools
+import logging
+import numpy as np
+import pymongo
+import random
+from scoop import futures
+import sys,os
+# add ofspy to system path
+sys.path.append(os.path.abspath('..'))
+
+from ofspy.ofs import OFS
 
 parser = argparse.ArgumentParser(description="This program runs an OFS generic algorithm.")
 parser.add_argument('-d', '--numTurns', type=int, default=24,
@@ -87,6 +82,22 @@ else:
     db = pymongo.MongoClient(args.dbHost, args.dbPort).ofs
 
 def enumSatellites(player, capacity, orbit, sector, sgl, isl):
+    """
+    Enumerates all satellite definitions for a set of constraints.
+    @param player: the player to design the satellite
+    @type player: L{int}
+    @param capacity: the capacity of the satellite for modules
+    @type capacity: L{int}
+    @param orbit: the orbit in which to commission the satellite
+    @type orbit: L{int}
+    @param sector: the sector in which to commission the satellite
+    @type sector: L{int}
+    @param sgl: the SGL protocol used by the satellite
+    @type sgl: L{str}
+    @param isl: the ISL protocol used by the satellite
+    @type isl: L{str}
+    @return: L{str}
+    """
     size = ''
     if capacity == 2:
         size='Small'
@@ -110,6 +121,14 @@ def enumSatellites(player, capacity, orbit, sector, sgl, isl):
     return out
 
 def sortBySize(a, b):
+    """
+    Sorts a set of satellite definitions by size.
+    @param a: a satellite definition
+    @type a: L{str}
+    @param b: a satellite definition
+    @type b: L{str}
+    @return: L{int}
+    """
     if isinstance(a, list) and isinstance(b, list):
         a = " ".join(a)
         b = " ".join(b)
@@ -133,6 +152,18 @@ def sortBySize(a, b):
         return a.count(',') - b.count(',')
 
 def enum1x1Sats(player, sector, sgl, isl):
+    """
+    Enumerates all 1-player, 1-satellite definitions.
+    @param player: the player to design the satellite
+    @type player: L{int}
+    @param sector: the sector in which to commission the satellite
+    @type sector: L{int}
+    @param sgl: the SGL protocol used by the satellite
+    @type sgl: L{str}
+    @param isl: the ISL protocol used by the satellite
+    @type isl: L{str}
+    @return: L{str}
+    """
     out = enumSatellites(player, 2, 'MEO', sector, sgl, isl) \
             + enumSatellites(player, 4, 'MEO', sector, sgl, isl) \
             + enumSatellites(player, 6, 'MEO', sector, sgl, isl)
@@ -160,6 +191,24 @@ toolbox.register("population", tools.initRepeat,
 
 def queryCase((elements, numPlayers, initialCash,
                numTurns, seed, ops, fops)):
+    """
+    Queries and retrieves existing results or executes an OFS simulation.
+    @param elements: the design specifications
+    @type elements: L{list}
+    @param numPlayers: the number of players
+    @type numPlayers: L{int}
+    @param initialCash: the initial cash
+    @type initialCash: L{int}
+    @param numTurns: the number of turns
+    @type numTurns: L{int}
+    @param seed: the random number seed
+    @type seed: L{int}
+    @param ops: the operations definition
+    @type ops: L{str}
+    @param fops: the federation operations definition
+    @type fops: L{str}
+    @return: L{list}
+    """
     global db
     
     if db is None:
@@ -189,16 +238,51 @@ def queryCase((elements, numPlayers, initialCash,
     return [tuple(result) for result in doc[u'results']]
 
 def executeCase((elements, numPlayers, initialCash, numTurns, seed, ops, fops)):
+    """
+    Executes an OFS simulation.
+    @param elements: the design specifications
+    @type elements: L{list}
+    @param numPlayers: the number of players
+    @type numPlayers: L{int}
+    @param initialCash: the initial cash
+    @type initialCash: L{int}
+    @param numTurns: the number of turns
+    @type numTurns: L{int}
+    @param seed: the random number seed
+    @type seed: L{int}
+    @param ops: the operations definition
+    @type ops: L{str}
+    @param fops: the federation operations definition
+    @type fops: L{str}
+    """
     return OFS(elements=elements, numPlayers=numPlayers, initialCash=initialCash,
                numTurns=numTurns, seed=seed, ops=ops, fops=fops).execute()
         
 def getSatellite(i, player, sector):
+    """
+    Gets the specified satellite definition.
+    @param i: the prototype id
+    @type i: L{int}
+    @param player: the player to design the satellite
+    @type player: L{int}
+    @param sector: the sector in which to commission the satellite
+    @type sector: L{int}
+    @return: L{str}
+    """
     global prototypes
     
     return prototypes[i].replace("1.", str(player)+".") \
             .replace("MEO1","MEO"+str(sector))
 
 def getIndividual(individual, maxSatsEach):
+    """
+    Decodes the GA individual to a design definition.
+    @param individual: the individual
+    @type individual: L{list}
+    @param maxSatsEach: the max number of satellites
+    @type maxSatsEach: L{int}
+    @return: L{str}
+    """
     satellites = []
     offsets = np.cumsum(np.array(individual) > 0)
     for i in range(maxSatsEach):
@@ -232,6 +316,24 @@ def getIndividual(individual, maxSatsEach):
 
 def evalIndividual(individual, numTurns, ops, fops,
                    maxSatsEach, maxCost, numExecutions):
+    """
+    Evaluates the GA individual and returns the expected cost and value.
+    @param individual: the individual
+    @type individual: L{list}
+    @param numTurns: the number of turns
+    @type numTurns: L{int}
+    @param ops: the operations specification
+    @type ops: L{int}
+    @param fops: the federation operations specification
+    @type fops: L{int}
+    @param maxSatsEach: the max number of satellites
+    @type maxSatsEach: L{int}
+    @param maxCost: the maximum cost allowed
+    @type maxCost: L{int}
+    @param numExecutions: the number of executions to perform
+    @type numExecutions: L{int}
+    @return: L{tuple}
+    """
     elements = [e for e in getIndividual(
         individual, maxSatsEach).split(' ') if e != '']
     results = []
@@ -265,7 +367,30 @@ toolbox.register("map", futures.map)
 
 def executeGA(numTurns, ops, fops, maxSatsEach, maxCost,
               numGenerations, probCross, probMutate,
-              initPopulation, seed):        
+              initPopulation, seed):
+    """
+    Executes a GA.
+    @param numTurns: the number of turns
+    @type numTurns: L{int}
+    @param ops: the operations specification
+    @type ops: L{int}
+    @param fops: the federation operations specification
+    @type fops: L{int}
+    @param maxSatsEach: the max number of satellites
+    @type maxSatsEach: L{int}
+    @param maxCost: the maximum cost allowed
+    @type maxCost: L{int}
+    @param numGenerations: the number of generations
+    @type numGenerations: L{int}
+    @param probCross: the probability of crossing
+    @type probCross: L{float}
+    @param probMutate: the probability of mutation
+    @type probMutate: L{float}
+    @param initPopulation: the initial population size
+    @type initPopulation: L{int}
+    @param seed: the random number seed
+    @type seed: L{int}
+    """
     random.seed(seed)
     
     pop = toolbox.population(n=initPopulation)

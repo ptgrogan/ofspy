@@ -14,13 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import sys,os
-# add ofspy to system path
-sys.path.append(os.path.abspath('..'))
-
 import argparse
 import logging
 import math
+import sys,os
+# add ofspy to system path
+sys.path.append(os.path.abspath('..'))
 
 from ofspy.ofs import OFS
     
