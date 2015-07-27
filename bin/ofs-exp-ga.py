@@ -294,8 +294,8 @@ def executeGA(numTurns, ops, fops, maxSatsEach, maxCost,
             writer.writerow([getIndividual(individual, maxSatsEach),
                              individual.fitness.values[0],
                              individual.fitness.values[1],
-                             individual.fitness.values[0] - 
-                             individual.fitness.values[1]])
+                             individual.fitness.values[1] - 
+                             individual.fitness.values[0]])
     
 if __name__ == '__main__':    
     executeGA(args.numTurns, args.ops, args.fops,
