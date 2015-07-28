@@ -66,7 +66,8 @@ class Simulator(object):
             self.advance()
     
     def isComplete(self):
-        return self.time >= self.maxTime
+        return (self.time >= self.maxTime
+                if self.maxTime is not None else False)
     
     def trigger(self, event, data):
         if event in self.handlers:

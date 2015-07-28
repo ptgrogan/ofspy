@@ -85,7 +85,9 @@ class DynamicOperations(Operations):
         @type context: L{Context}
         """
         minTime = context.time
-        maxTime = min(context.maxTime, context.time + self.planningHorizon)
+        maxTime = (context.time + self.planningHorizon
+                   if context.maxTime is None else
+                   min(context.maxTime, context.time + self.planningHorizon))
         
         with LinearProgram(name='OFS LP for {}'.format(controller.name)) as lp:
             S = []      # S[i][j]: satellite i senses demand j
@@ -612,7 +614,9 @@ class FixedCostDynamicOperations(DynamicOperations):
         @type context: L{Context}
         """
         minTime = context.time
-        maxTime = min(context.maxTime, context.time + self.planningHorizon)
+        maxTime = (context.time + self.planningHorizon
+                   if context.maxTime is None else
+                   min(context.maxTime, context.time + self.planningHorizon))
         allElements = controller.getElements()
         allSatellites = [e for e in allElements if e.isSpace()]
         allSatellitesISL = [e for e in allSatellites
