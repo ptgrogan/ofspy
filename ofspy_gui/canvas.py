@@ -24,7 +24,7 @@ sys.path.append(os.path.abspath('..'))
 from ofspy.ofs import OFS
 from ofspy.context import Context
 
-class OFS_GUI(Canvas):
+class CanvasOFS(Canvas):
     def __init__(self, root, ofs=None):
         self.WIDTH = 800
         self.HEIGHT = 800
@@ -299,19 +299,3 @@ class OFS_GUI(Canvas):
                     else self.winfo_reqwidth()-self.padding,
                     self.padding+self.federateSize[1] if i==0 or i==1
                     else self.winfo_reqheight()-self.padding))
-                
-if __name__ == '__main__':
-    elements = '4.MediumSat@MEO6,VIS,SAR,oSGL,oISL 4.MediumSat@MEO5,VIS,SAR,oSGL,oISL 4.LargeSat@MEO4,VIS,SAR,DAT,oSGL,oISL 4.GroundSta@SUR1,oSGL'
-    ofs = OFS(elements.split(' '),
-        numPlayers=4, ops='n', fops='d6,50,1', initialCash=0, numTurns=None)
-    ofs.sim.init()
-    
-    root = Tk()
-    frame = Frame(root)
-    frame.pack(fill=BOTH, expand=YES)
-    canvas = OFS_GUI(root, ofs)
-    canvas.draw()
-    
-    root.title("Orbital Federates Simulation")
-    root.resizable(0,0)
-    root.mainloop()
