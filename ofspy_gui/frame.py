@@ -37,6 +37,6 @@ class FrameOFS(Frame):
                     __name__, 'resources/ofs.ico'))
         else:
             root.wm_iconbitmap(
-                bitmap = pkg_resources.resource_filename(
-                    __name__, '@resources/ofs.xbm'))
+                bitmap = '@' + pkg_resources.resource_filename(
+                    __name__, 'resources/ofs.xbm'))
         root.resizable(0,0)
