@@ -109,13 +109,15 @@ def mapReduce(db, dbName, query=None):
         db[dbName].map_reduce(ppMap, ppReduce, '{}_pp'.format(dbName),
                               query=query, finalize=ppFinalize)
 
-def processData(db, dbName):
+def processData(db, dbName, query=None):
     """
     Processes data for a database and returns parsed results.
     @param db: the database
     @type db: L{Database}
     @param dbName: the database collection name
     @type dbName: L{str}
+    @param query: the filter query
+    @type query: L{dict}
     @return: L{tuple}
     """
     id = np.array([])
@@ -142,7 +144,8 @@ def processData(db, dbName):
                          'p1Min', 'p1Max', 'p1StdErr',
                          'p2Cost', 'p2Avg', 'p2ExpVal',
                          'p2Min', 'p2Max', 'p2StdErr'])
-        for doc in db['{}_pp'.format(dbName)].find().sort(u'_id.totCost', pymongo.ASCENDING):
+        for doc in db['{}_pp'.format(dbName)].find(query).sort(
+            u'_id.totCost', pymongo.ASCENDING):
             counter += 1
             writer.writerow([counter, doc[u'_id'][u'elements'].encode('ascii','ignore').replace(',','|'),
                              doc[u'_id'][u'ops'].encode('ascii','ignore').replace(',','|'),
@@ -270,7 +273,9 @@ def plotTradespaceStep3(c, id, cost, expValue, P_id):
         plt.annotate('%0d'%i, xy=(p_cost[p_id==i], p_value[p_id==i]),
                     xytext=(-5,4), textcoords='offset points', size=8, color=c)    
 
-def tradespaceIndependent(label, id, cost, expValue, stdErr, pisl, oisl, osgl):
+def tradespaceIndependent(label, id, cost, expValue,
+                          stdErr, pisl, oisl, osgl,
+                          xlim=[1000, 4000], ylim=[-2000, 10000]):
     """
     Creates a tradespace plot for independent designs.
     @param label: the plot label
@@ -307,14 +312,16 @@ def tradespaceIndependent(label, id, cost, expValue, stdErr, pisl, oisl, osgl):
         
     plt.xlabel('Initial Cost ($\S$)')
     plt.ylabel('24-turn Expected Net Value ($\S$)')
-    plt.xlim([1000, 4000])
-    plt.ylim([-2000, 10000])
+    plt.xlim(xlim)
+    plt.ylim(ylim)
     plt.legend(['pSGL','pSGL and pISL'],loc='upper left')
     plt.grid()
     plt.gcf().set_size_inches(6.5, 3.5)
     plt.savefig('ts-'+label+'.png', bbox_inches='tight', dpi=300)
         
-def tradespaceCentralized(label, id, cost, expValue, stdErr, pisl, oisl, osgl):
+def tradespaceCentralized(label, id, cost, expValue,
+                          stdErr, pisl, oisl, osgl,
+                          xlim=[1000, 4000], ylim=[-2000, 10000]):
     """
     Creates a tradespace plot for centralized designs.
     @param label: the plot label
@@ -355,8 +362,8 @@ def tradespaceCentralized(label, id, cost, expValue, stdErr, pisl, oisl, osgl):
         
     plt.xlabel('Initial Cost ($\S$)')
     plt.ylabel('24-turn Expected Net Value ($\S$)')
-    plt.xlim([1000, 4000])
-    plt.ylim([-2000, 10000])
+    plt.xlim(xlim)
+    plt.ylim(ylim)
     plt.legend(['pSGL', 'pSGL and pISL', 'pSGL and oISL',
                 'oSGL', 'oSGL and pISL', 'oSGL and oISL'],loc='upper left')
     plt.grid()
@@ -523,18 +530,22 @@ def postProcessBVC(db):
             print 'cost: ' + '%.0f'%c_cost[i] + ', value: ' + '%.0f'%x_value[i]
             print 'id ' + '%0d'%id + ': ' + elements[id==id].tostring()
 
-def postProcessGA(db):
+def postProcessGA(db, maxCost=None):
     """
     Performs post-processing for genetic algorithm experiment.
     @param db: the database
     @type db: L{Database}
     """
     mapReduce(db, 'ga')
+    query = {}
+    if maxCost is not None:
+        query['_id.totCost'] = {'$lte':maxCost}
     (id, elements, p1Cost, p2Cost, totCost,
      p1ValueStdErr, p2ValueStdErr, totValueStdErr, 
      p1ValueAvg, p2ValueAvg, totValueAvg,
      p1ExpValue, p2ExpValue, totExpValue, 
-     pisl, oisl, osgl, independent) = processData(db, 'ga')
+     pisl, oisl, osgl, independent) = processData(
+        db, 'ga', query=query if query != {} else None)
     
     plt.rcParams.update({'axes.labelsize':8,
                          'font.size':8, 
@@ -545,7 +556,19 @@ def postProcessGA(db):
     if np.size(id) > 0:
         tradespaceCentralized('ga', id, 
             totCost/2, totExpValue/2, totValueStdErr/2,
-            pisl, oisl, osgl)
+            pisl, oisl, osgl,
+            xlim=[np.min(totCost/2)
+                  - .1*(np.max(totCost/2)
+                        - np.min(totCost/2)),
+                  np.max(totCost/2)
+                  + .1*(np.max(totCost/2)
+                        - np.min(totCost/2))],
+            ylim=[np.min(totExpValue/2)
+                  - .1*(np.max(totExpValue/2)
+                        - np.min(totExpValue/2)),
+                  np.max(totExpValue/2)
+                  + .1*(np.max(totExpValue/2)
+                        - np.min(totExpValue/2))])
 
 def postProcessAll(db, numTurns=None, numPlayers=None,
                    initialCash=None, ops=None, fops=None):
@@ -608,6 +631,8 @@ if __name__ == '__main__':
                         help='database host')
     parser.add_argument('--dbPort', type=int, default=27017,
                         help='database port')
+    parser.add_argument('-c', '--maxCost', type=int, default=None,
+                        help='maximum total cost for ga')
     parser.add_argument('-d', '--numTurns', type=int, default=None,
                         help='filter for all experiments: simulation duration (number of turns)')
     parser.add_argument('-p', '--numPlayers', type=int, default=None,
@@ -637,7 +662,7 @@ if __name__ == '__main__':
     elif args.experiment == 'bvc':
         postProcessBVC(db)
     elif args.experiment == 'ga':
-        postProcessGA(db)
+        postProcessGA(db, args.maxCost)
     else:
         postProcessAll(db, args.numTurns, args.numPlayers,
                        args.initialCash, args.ops, args.fops)
