@@ -460,7 +460,7 @@ class DynamicOperations(Operations):
             code, description = lp.solve()
             
             if code > 1:
-                logging.error(description)
+                logging.warning(description)
                 with open('lp_debug.txt', 'w+') as f:
                     f.write(lp.dumpProgram())
             else:
@@ -1065,7 +1065,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                 code, description = lp.solve()
                 
                 if code > 1:
-                    logging.error(description)
+                    logging.warning(description)
                     with open('lp_debug.txt', 'w+') as f:
                         f.write(lp.dumpProgram())
                 else:
