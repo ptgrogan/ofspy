@@ -14,12 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import math
+import pkg_resources
 from Tkinter import *
 from PIL import ImageTk, Image
-import math
-import sys,os
-# add ofspy to system path
-sys.path.append(os.path.abspath('..'))
 
 from ofspy.ofs import OFS
 from ofspy.context import Context
@@ -67,10 +65,13 @@ class CanvasOFS(Canvas):
         self.numFrames = 10
         self.frameRate = 20
         
-        #image = Image.open('resources/background.jpg')
-        #image = image.resize((int(self.WIDTH*self.scale),
-        #                      int(self.HEIGHT*self.scale)), Image.ANTIALIAS)
-        #self.backgroundImage = ImageTk.PhotoImage(image)
+        """
+        image = Image.open(pkg_resources.resource_filename(
+            __name__, 'resources/background.jpg'))
+        image = image.resize((int(self.WIDTH*self.scale),
+                              int(self.HEIGHT*self.scale)), Image.ANTIALIAS)
+        self.backgroundImage = ImageTk.PhotoImage(image)
+        """
         
     def advance(self, event):
         if not self.animating:
@@ -221,7 +222,7 @@ class CanvasOFS(Canvas):
         self.drawData(demand.generateData(), location)
     
     def drawContext(self):
-        #self.create_image(0, 0, image=self.backgroundImage, anchor=NW)
+        # self.create_image(0, 0, image=self.backgroundImage, anchor=NW)
         center = (self.winfo_reqwidth()/2, self.winfo_reqheight()/2)
         
         self.create_text(center[0], self.padding,

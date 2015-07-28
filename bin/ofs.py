@@ -42,6 +42,8 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--logging', type=str, default='error',
                         choices=['debug','info','warning','error'],
                         help='logging level')
+    parser.add_argument('-g', '--gui', action='store_true',
+                        help='launch with graphical user interface')
     
     args = parser.parse_args()
     if args.logging == 'debug':
@@ -54,8 +56,20 @@ if __name__ == '__main__':
         level = logging.ERROR
     logging.basicConfig(level=level)
     
-    results = OFS(elements=args.elements, numTurns=args.numTurns,
+    ofs = OFS(elements=args.elements, numTurns=args.numTurns,
                   numPlayers=args.numPlayers, initialCash=args.initialCash,
-                  seed=args.seed, ops=args.ops, fops=args.fops).execute()
-    for result in results:
-        print '{0}:{1}'.format(result[0], result[1])
+                  seed=args.seed, ops=args.ops, fops=args.fops)
+    
+    if args.gui:
+        ofs.sim.init()
+            
+        from Tkinter import Tk
+        from ofspy_gui.frame import FrameOFS
+        
+        root = Tk()
+        frame = FrameOFS(root, ofs)
+        root.mainloop()
+    else:
+        results = ofs.execute()
+        for result in results:
+            print '{0}:{1}'.format(result[0], result[1])
