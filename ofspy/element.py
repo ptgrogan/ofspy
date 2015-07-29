@@ -426,7 +426,6 @@ class Element(Entity):
                     logging.debug(
                         '{0} already stored {1} in a sensor module'
                         .format(self.name, str(data)))
-                    self.trigger('store', self, data)
                     return True
                 elif (any(m.isStorage()
                           and m.isSensor()
@@ -444,7 +443,6 @@ class Element(Entity):
                     logging.debug(
                         '{0} already stored {1} in a storage module'
                         .format(self.name, str(data)))
-                    self.trigger('store', self, data)
                     return True
                 elif (any(m.isStorage()
                           and not m.isSensor()
