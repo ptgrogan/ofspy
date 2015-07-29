@@ -89,11 +89,11 @@ class Federate(Controller):
                          .format(element.name))
         else:
             self.elements.append(element)
-            self.cash -= element.getDesignCost()
+            cost = element.getDesignCost()
+            self.cash -= cost
             logging.info('{0} designed {1} for {2}'
-                        .format(self.name, element.name,
-                                element.getDesignCost()))
-            self.trigger('design', self, element)
+                        .format(self.name, element.name, cost))
+            self.trigger('design', self, element, cost)
             return True
         return False
     
@@ -118,8 +118,9 @@ class Federate(Controller):
             logging.info('{0} commissioned {1} for {2}.'
                         .format(self.name, element.name,
                                 element.getCommissionCost(location, context)))
-            self.cash -= element.getCommissionCost(location, context)
-            self.trigger('commission', self, element)
+            cost = element.getCommissionCost(location, context)
+            self.cash -= cost
+            self.trigger('commission', self, element, location, cost)
             return True
         else:
             logging.warning('{0} could not commission {1}.'
