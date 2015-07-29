@@ -119,10 +119,12 @@ class Controller(Entity):
                         .format(self.name, contract.name))
         elif (self.canSense(contract.demand, element, context)
               and element.senseAndStore(contract)):
-            logging.info('{0} sensed and stored data for {1} using {2}'
-                        .format(self.name, contract.name, element.name))
-            self.trigger('sense', self, contract, element)
-            return True
+            for federate in [federate for federate in self.getFederates()
+                             if federate.canSense(contract.demand, element, context)]:
+                logging.info('{0} sensed and stored data for {1} using {2}'
+                            .format(federate.name, contract.name, element.name))
+                self.trigger('sense', federate, contract, element)
+                return True
         else:
             logging.warning('{0} could not sense and store data for {1} using {2}'
                         .format(self.name, contract.name, element.name))
