@@ -283,7 +283,7 @@ class Context(Entity):
                 for federate in [federate for federation in self.federations
                                  for federate in federation.federates]:
                     rollStream = self.rollStreams[federate.name]
-                    for element in federation.elements:
+                    for element in federate.elements:
                         if (element.isSpace()
                             and element.location is not None
                             and element.location.sector == event.sector):
@@ -301,6 +301,10 @@ class Context(Entity):
                                             numHits += 1
                                             logging.info('{0} was hit and lost {1}'
                                                         .format(element.name, module.name))
+                                        else:
+                                            
+                                            logging.debug('{0} was not hit'
+                                                        .format(element.name))
         self.time = self._nextTime
         logging.info('Commence operations for time {0}'.format(self.time))
         federates = [federate for federation in self.federations
