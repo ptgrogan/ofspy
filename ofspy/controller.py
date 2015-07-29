@@ -94,14 +94,11 @@ class Controller(Entity):
         @type context: L{Context}
         @return: L{bool}
         """
-        if element not in self.getElements():
-            logging.warning('{0} does not control {1}.'
-                        .format(self.name, element.name))
-        elif (self.canContract(demand, context)
-              or any(contract.demand is demand
-                     for contract in self.getContracts())):
-            return element.canSense(demand)
-        return False
+        return (element in self.getElements()
+                and self.canContract(demand, context)
+                or any(contract.demand is demand
+                       for contract in self.getContracts())
+                and element.canSense(demand))
     
     def senseAndStore(self, contract, element, context):
         """
@@ -117,6 +114,9 @@ class Controller(Entity):
         if contract not in self.getContracts():
             logging.warning('{0} does not control {1}.'
                         .format(self.name, contract.name))
+        elif element not in self.getElements():
+            logging.warning('{0} does not control {1}.'
+                        .format(self.name, element.name))
         elif (self.canSense(contract.demand, element, context)
               and element.senseAndStore(contract)):
             for federate in [federate for federate in self.getFederates()
@@ -131,7 +131,7 @@ class Controller(Entity):
         return False
     
     def couldTransport(self, protocol, data, txElement,
-                       rxElement, txLocation, rxLocation):
+                       rxElement, txLocation, rxLocation, context):
         """
         Checks if this controller could transport data between elements.
         @param protocol: the transmission protocol
@@ -146,19 +146,21 @@ class Controller(Entity):
         @type txLocation: L{Location}
         @param rxLocation: the receiving location
         @type rxLocation: L{Location}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
         return (txElement.couldTransmit(protocol, data, rxElement,
-                                        txLocation, rxLocation)
+                                        txLocation, rxLocation, context)
                 and rxElement.couldReceive(protocol, data, txElement,
-                                           txLocation, rxLocation)
+                                           txLocation, rxLocation, context)
                 and ('o' in protocol
                      or next((federate for federate in self.getFederates()
                               if txElement in federate.elements), None)
                      is next((federate for federate in self.getFederates()
                               if rxElement in federate.elements), None)))
     
-    def canTransport(self, protocol, data, txElement, rxElement):
+    def canTransport(self, protocol, data, txElement, rxElement, context):
         """
         Checks if this controller can transport data between elements.
         @param protocol: the transmission protocol
@@ -169,21 +171,18 @@ class Controller(Entity):
         @type txElement: L{Element}
         @param rxElement: the receiving element
         @type rxElement: L{Element}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
-        if self.couldTransport(protocol, data, txElement, rxElement,
-                               txElement.location, rxElement.location):
-            if txElement not in self.getElements():
-                logging.warning('{0} does not control {1}.'
-                            .format(self.name, txElement.name))
-            elif rxElement not in self.getElements():
-                logging.warning('{0} does not control {1}.'
-                            .format(self.name, rxElement.name))
-            return (txElement.canTransmit(protocol, data, rxElement)
-                    and rxElement.canReceive(protocol, data, txElement))
-        return False
+        return (self.couldTransport(protocol, data, txElement, rxElement,
+                                    txElement.location, rxElement.location, context)
+                and txElement in self.getElements()
+                and rxElement in self.getElements()
+                and txElement.canTransmit(protocol, data, rxElement, context)
+                and rxElement.canReceive(protocol, data, txElement, context))
     
-    def transport(self, protocol, data, txElement, rxElement):
+    def transport(self, protocol, data, txElement, rxElement, context):
         """
         Transports data between elements.
         @param protocol: the transmission protocol
@@ -194,14 +193,22 @@ class Controller(Entity):
         @type txElement: L{Element}
         @param rxElement: the receiving element
         @type rxElement: L{Element}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
-        if self.canTransport(protocol, data, txElement, rxElement):
-            if not txElement.transmit(protocol, data, rxElement):
+        if txElement not in self.getElements():
+            logging.warning('{0} does not control {1}.'
+                        .format(self.name, txElement.name))
+        elif rxElement not in self.getElements():
+            logging.warning('{0} does not control {1}.'
+                        .format(self.name, rxElement.name))
+        elif self.canTransport(protocol, data, txElement, rxElement, context):
+            if not txElement.transmit(protocol, data, rxElement, context):
                 logging.warning('{0} could not transmit {1} to {2} with {3}'
                              .format(txElement.name, data,
                                      rxElement.name, protocol))
-            elif not rxElement.receive(protocol, data, txElement):
+            elif not rxElement.receive(protocol, data, txElement, context):
                 logging.warning('{0} could not receive {1} from {2} with {3}'
                              .format(rxElement.name, str(data),
                                      txElement.name, protocol))
@@ -294,18 +301,9 @@ class Controller(Entity):
         @type creditor: L{Federate}
         @return: L{bool}
         """
-        if debtor not in self.getFederates():
-            logging.warning('{} does not control {}'
-                            .format(self.name, debtor.name))
-        elif creditor not in self.federates:
-            logging.warning('{} does not control {}'
-                            .format(self.name, creditor.name))
-        elif amount > debtor.cash:
-            logging.warning('{} exceeds {} cash.'
-                            .format(amount, debtor.name))
-        else:
-            return True
-        return False
+        return (debtor in self.getFederates()
+                and creditor in self.getFederates()
+                and amount > debtor.cash)
     
     def exchange(self, amount, debtor, creditor):
         """
@@ -318,7 +316,16 @@ class Controller(Entity):
         @type creditor: L{Federate}
         @return: L{bool}
         """
-        if self.canExchange(amount, debtor, creditor):
+        if debtor not in self.getFederates():
+            logging.warning('{} does not control {}'
+                            .format(self.name, debtor.name))
+        elif creditor not in self.getFederates():
+            logging.warning('{} does not control {}'
+                            .format(self.name, creditor.name))
+        elif amount > debtor.cash:
+            logging.warning('{} exceeds {} cash.'
+                            .format(amount, debtor.name))
+        elif self.canExchange(amount, debtor, creditor):
             debtor.cash -= amount
             creditor.cash += amount
             logging.info('{} paid {} to {}'
