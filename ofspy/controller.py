@@ -21,6 +21,7 @@ Controller class.
 import logging
 
 from .entity import Entity
+from .contract import Contract
 
 class Controller(Entity):
     def __init__(self, name=None):
@@ -237,12 +238,15 @@ class Controller(Entity):
         @return: L{Contract}
         """
         if self.canContract(demand, context):
-            contract = next((federate.contract(demand, context)
-                        for federate in self.getFederates()
-                        if federate.canContract(demand, context)), None)
-            logging.info('{0} contracted for {1}'
-                        .format(self.name, demand.name))
-            return contract
+            for federate in [federate for federate in self.getFederates()
+                             if federate.canContract(demand, context)]:
+                context.currentEvents.remove(demand)
+                contract = Contract(demand)
+                federate.contracts.append(contract)
+                logging.info('{0} contracted for {1}'
+                            .format(federate.name, demand.name))
+                self.trigger('contract', federate, demand)
+                return contract
         logging.warning('{0} could not contract for {1}'
                     .format(self.name, demand.name))
         return None
@@ -257,10 +261,21 @@ class Controller(Entity):
         @return: L{bool}
         """
         if self.canResolve(contract):
-            if next((federate.resolve(contract, context)
-                         for federate in self.getFederates()
-                         if federate.canResolve(contract)), None) is not None:
+            for federate in [federate for federate in self.getFederates()
+                             if federate.canResolve(contract)]:
+                element = context.getDataElement(contract)
+                value = (contract.getValue()
+                         if contract.isCompleted(element.location
+                                                 if element is not None
+                                                 else None)
+                         else contract.demand.getDefaultValue())
+                federate.cash += value
+                federate.contracts.remove(contract)
+                context.pastEvents.append(contract.demand)
                 self.deleteData(contract)
+                logging.info('{0} resolved {1} for {2} cash'
+                            .format(federate.name, contract.name, value))
+                self.trigger('resolve', federate, contract, value)
                 return True
         logging.warning('{0} could not resolve {1}.'
                     .format(self.name, contract.name))

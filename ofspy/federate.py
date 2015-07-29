@@ -21,7 +21,6 @@ Federate class.
 import logging
 
 from .controller import Controller
-from .contract import Contract
 from .operations import Operations
 
 class Federate(Controller):
@@ -143,51 +142,6 @@ class Federate(Controller):
             logging.info('{0} decommissioned {1} for {2}.'.format(
                 self.name, element.name, element.getDecommissionValue()))
             self.trigger('decommission', self, element)
-            return True
-        return False
-        
-    def contract(self, demand, context):
-        """
-        Contracts a demand for this federate.
-        @param demand: the demand to contract
-        @type demand: L{Demand}
-        @param context: the context
-        @type context: L{Context}
-        @return: L{Contract}
-        """
-        if self.canContract(demand, context):
-            context.currentEvents.remove(demand)
-            contract = Contract(demand)
-            self.contracts.append(contract)
-            logging.info('{0} contracted for {1}'
-                        .format(self.name, demand.name))
-            self.trigger('contract', self, demand)
-            return contract
-        else:
-            logging.warning('{0} could not contract for {1}'
-                        .format(self.name, demand.name))
-        return None
-        
-    def resolve(self, contract, context):
-        """
-        Resolves a contract.
-        @param contract: the transmission protocol
-        @type contract: L{Contract}
-        @param context: the context
-        @type context: L{Context}
-        @return: L{bool}
-        """
-        if contract not in self.contracts:
-            logging.warning('{0} does not own {1}.'
-                        .format(self.name, contract.name))
-        else:
-            value = contract.getValue()
-            self.cash += value
-            self.contracts.remove(contract)
-            context.pastEvents.append(contract.demand)
-            logging.info('{0} resolved {1} for {2} cash'
-                        .format(self.name, contract.name, value))
-            self.trigger('resolve', self, contract, value)
             return True
         return False
     
