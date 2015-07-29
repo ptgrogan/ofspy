@@ -49,7 +49,7 @@ class Transceiver(Module):
         self._initReceived = 0
         self.received = self._initReceived
     
-    def couldTransmit(self, data, receiver, txLocation=None, rxLocation=None):
+    def couldTransmit(self, data, receiver, txLocation=None, rxLocation=None, context=None):
         """
         Checks if this transceiver could transmit data (state-independent).
         @param data: the data to transmit
@@ -59,12 +59,14 @@ class Transceiver(Module):
         @type txLocation: L{Location}
         @param rxLocation: the receiver location
         @type rxLocation: L{Location}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
         return self.maxTransmitted >= data.size \
                 and self.protocol == receiver.protocol
     
-    def canTransmit(self, data, receiver, txLocation=None, rxLocation=None):
+    def canTransmit(self, data, receiver, txLocation=None, rxLocation=None, context=None):
         """
         Checks if this transceiver can transmit data (state-dependent).
         @param data: the data to transmit
@@ -74,13 +76,15 @@ class Transceiver(Module):
         @type txLocation: L{Location}
         @param rxLocation: the receiver location
         @type rxLocation: L{Location}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
-        return self.couldTransmit(data, receiver, txLocation, rxLocation) \
+        return self.couldTransmit(data, receiver, txLocation, rxLocation, context) \
                 and self.maxTransmitted >= data.size + self.transmitted
                 # and self.canTransferOut(data)
         
-    def transmit(self, data, receiver, txLocation=None, rxLocation=None):
+    def transmit(self, data, receiver, txLocation=None, rxLocation=None, context=None):
         """
         Transmits data from this tranceiver.
         @param data: the data to transmit
@@ -90,9 +94,11 @@ class Transceiver(Module):
         @type txLocation: L{Location}
         @param rxLocation: the receiver location
         @type rxLocation: L{Location}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
-        if self.canTransmit(data, receiver, txLocation, rxLocation) \
+        if self.canTransmit(data, receiver, txLocation, rxLocation, context) \
                 and self.canTransferOut(data) \
                 and self.transferOut(data):
             self.transmitted += data.size
@@ -100,7 +106,7 @@ class Transceiver(Module):
             return True
         return False
     
-    def couldReceive(self, data, transmitter, txLocation=None, rxLocation=None):
+    def couldReceive(self, data, transmitter, txLocation=None, rxLocation=None, context=None):
         """
         Checks if this transceiver could receive data (state-independent).
         @param data: the data to transmit
@@ -110,12 +116,14 @@ class Transceiver(Module):
         @type txLocation: L{Location}
         @param rxLocation: the receiver location
         @type rxLocation: L{Location}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
         return self.maxReceived >= data.size \
                 and self.protocol == transmitter.protocol
         
-    def canReceive(self, data, transmitter, txLocation=None, rxLocation=None):
+    def canReceive(self, data, transmitter, txLocation=None, rxLocation=None, context=None):
         """
         Checks if this transceiver can receive data (state-dependent).
         @param data: the data to transmit
@@ -125,13 +133,15 @@ class Transceiver(Module):
         @type txLocation: L{Location}
         @param rxLocation: the receiver location
         @type rxLocation: L{Location}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
-        return self.couldReceive(data, transmitter, txLocation, rxLocation) \
+        return self.couldReceive(data, transmitter, txLocation, rxLocation, context) \
                 and self.maxReceived >= data.size + self.received \
                 and self.canTransferIn(data)
     
-    def receive(self, data, transmitter, txLocation=None, rxLocation=None):
+    def receive(self, data, transmitter, txLocation=None, rxLocation=None, context=None):
         """
         Receives data with this tranceiver.
         @param data: the data to transmit
@@ -141,9 +151,11 @@ class Transceiver(Module):
         @type txLocation: L{Location}
         @param rxLocation: the receiver location
         @type rxLocation: L{Location}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
-        if self.canReceive(data, transmitter, txLocation, rxLocation) \
+        if self.canReceive(data, transmitter, txLocation, rxLocation, context) \
                 and self.transferIn(data):
             self.received += data.size
             self.trigger('receive', self, data, transmitter)

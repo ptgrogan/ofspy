@@ -126,7 +126,7 @@ class Element(Entity):
         """
         return False
     
-    def couldTransmit(self, protocol, data, rxElement, txLocation, rxLocation):
+    def couldTransmit(self, protocol, data, rxElement, txLocation, rxLocation, context):
         """
         Checks if this element could transmit data (state-independent).
         @param protocol: the transmission protocol
@@ -139,17 +139,19 @@ class Element(Entity):
         @type txLocation: L{Location}
         @param rxLocation: the receiving location
         @type rxLocation: L{Location}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """        
         return any(t.isTransceiver()
                    and t.protocol == protocol
                    and any(r.isTransceiver()
                            and r.protocol == protocol
-                           and t.couldTransmit(data, r, txLocation, rxLocation)
+                           and t.couldTransmit(data, r, txLocation, rxLocation, context)
                            for r in rxElement.modules)
                    for t in self.modules)
     
-    def canTransmit(self, protocol, data, rxElement):
+    def canTransmit(self, protocol, data, rxElement, context):
         """
         Checks if this element can transmit data (state-dependent).
         @param protocol: the transmission protocol
@@ -158,13 +160,15 @@ class Element(Entity):
         @type data: L{Data}
         @param rxElement: the receiving element
         @type rxElement: L{Element}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
         txLocation = self.location
         rxLocation = rxElement.location
         if  self.isCommissioned() \
                 and rxElement.isCommissioned() \
-                and self.couldTransmit(protocol, data, rxElement, txLocation, rxLocation):
+                and self.couldTransmit(protocol, data, rxElement, txLocation, rxLocation, context):
             container = next((m for m in self.modules if data in m.data), None)
             return container is not None \
                     and any(t.isTransceiver()
@@ -172,12 +176,12 @@ class Element(Entity):
                             and self.canTransfer(data, container, t)
                             and any(r.isTransceiver()
                                     and r.protocol == protocol
-                                    and t.canTransmit(data, r, txLocation, rxLocation)
+                                    and t.canTransmit(data, r, txLocation, rxLocation, context)
                                     for r in rxElement.modules)
                             for t in self.modules)
         return False
     
-    def transmit(self, protocol, data, rxElement):
+    def transmit(self, protocol, data, rxElement, context):
         """
         Transmits data from this element
         @param protocol: the transmission protocol
@@ -186,11 +190,13 @@ class Element(Entity):
         @type data: L{Data}
         @param rxElement: the receiving element
         @type rxElement: L{Element}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
         txLocation = self.location
         rxLocation = rxElement.location
-        if self.canTransmit(protocol, data, rxElement):
+        if self.canTransmit(protocol, data, rxElement, context):
             container = next((m for m in self.modules if data in m.data), None)
             if container is not None \
                     and any(t.isTransceiver()
@@ -198,9 +204,9 @@ class Element(Entity):
                             and self.canTransfer(data, container, t)
                             and any(r.isTransceiver()
                                     and r.protocol == protocol
-                                    and t.canTransmit(data, r, txLocation, rxLocation)
+                                    and t.canTransmit(data, r, txLocation, rxLocation, context)
                                     and self.transfer(data, container, t)
-                                    and t.transmit(data, r, txLocation, rxLocation)
+                                    and t.transmit(data, r, txLocation, rxLocation, context)
                                     for r in rxElement.modules)
                             for t in self.modules):
                 logging.debug(
@@ -212,7 +218,7 @@ class Element(Entity):
                         .format(self.name, str(data), rxElement.name, protocol))
         return False
     
-    def couldReceive(self, protocol, data, txElement, txLocation, rxLocation):
+    def couldReceive(self, protocol, data, txElement, txLocation, rxLocation, context):
         """
         Checks if this element could receive data (state-independent).
         @param protocol: the transmission protocol
@@ -225,17 +231,19 @@ class Element(Entity):
         @type txLocation: L{Location}
         @param rxLocation: the receiving location
         @type rxLocation: L{Location}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
         return any(r.isTransceiver()
                    and r.protocol == protocol
                    and any(t.isTransceiver()
                            and t.protocol == protocol
-                           and r.couldReceive(data, r, txLocation, rxLocation)
+                           and r.couldReceive(data, r, txLocation, rxLocation, context)
                            for t in txElement.modules)
                    for r in self.modules)
     
-    def canReceive(self, protocol, data, txElement):
+    def canReceive(self, protocol, data, txElement, context):
         """
         Checks if this element could receive data (state-dependent).
         @param protocol: the transmission protocol
@@ -244,23 +252,25 @@ class Element(Entity):
         @type data: L{Data}
         @param txElement: the transmitting element
         @type txElement: L{Element}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
         rxLocation = self.location
         txLocation = txElement.location
         if self.isCommissioned() \
                 and txElement.isCommissioned() \
-                and self.couldReceive(protocol, data, txElement, txLocation, rxLocation):
+                and self.couldReceive(protocol, data, txElement, txLocation, rxLocation, context):
             return any(r.isTransceiver()
                        and r.protocol == protocol
                        and any(t.isTransceiver()
                                and t.protocol == protocol
-                               and r.canReceive(data, t, txLocation, rxLocation)
+                               and r.canReceive(data, t, txLocation, rxLocation, context)
                                for t in txElement.modules)
                        for r in self.modules)
         return False
     
-    def receive(self, protocol, data, txElement):
+    def receive(self, protocol, data, txElement, context):
         """
         Receives data with this element.
         @param protocol: the transmission protocol
@@ -269,16 +279,18 @@ class Element(Entity):
         @type data: L{Data}
         @param txElement: the transmitting element
         @type txElement: L{Element}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
         rxLocation = self.location
         txLocation = txElement.location
-        if self.canReceive(protocol, data, txElement):
+        if self.canReceive(protocol, data, txElement, context):
             if any(r.isTransceiver()
                     and r.protocol == protocol
                     and any(t.isTransceiver()
                             and t.protocol == protocol
-                            and r.receive(data, t, txLocation, rxLocation)
+                            and r.receive(data, t, txLocation, rxLocation, context)
                             for t in txElement.modules)
                     for r in self.modules):
                 logging.debug(

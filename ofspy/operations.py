@@ -62,7 +62,7 @@ class Operations(object):
         return self.penaltyMemo[element]
 
 class DynamicOperations(Operations):
-    def __init__(self, planningHorizon=6, storagePenalty=-10, islPenalty=-10):
+    def __init__(self, planningHorizon=6, storagePenalty=-100, islPenalty=-10):
         """
         @param planningHorizon: the planning horizon
         @type planningHorizon: L{int}
@@ -218,7 +218,7 @@ class DynamicOperations(Operations):
                                               if controller.couldTransport(
                                                 protocol, demand.generateData(),
                                                 satellite, station,
-                                                txLocation, rxLocation)
+                                                txLocation, rxLocation, context)
                                               and not demand.isDefaultedAt(
                                                 time-context.time)
                                               else 0)
@@ -232,7 +232,7 @@ class DynamicOperations(Operations):
                                               if controller.couldTransport(
                                                 protocol, contract.demand.generateData(),
                                                 satellite, station,
-                                                txLocation, rxLocation)
+                                                txLocation, rxLocation, context)
                                               and not contract.demand.isDefaultedAt(
                                                 contract.elapsedTime+time-context.time)
                                               else 0)
@@ -294,7 +294,7 @@ class DynamicOperations(Operations):
                                               if controller.couldTransport(
                                                 protocol, demand.generateData(),
                                                 txSatellite, rxSatellite,
-                                                txLocation, rxLocation)
+                                                txLocation, rxLocation, context)
                                               and not demand.isDefaultedAt(
                                                 time-context.time)
                                               else 0)
@@ -310,7 +310,7 @@ class DynamicOperations(Operations):
                                               if controller.couldTransport(
                                                 protocol, contract.demand.generateData(),
                                                 txSatellite, rxSatellite,
-                                                txLocation, rxLocation)
+                                                txLocation, rxLocation, context)
                                               and not contract.demand.isDefaultedAt(
                                                 contract.elapsedTime+time-context.time)
                                               else 0)
@@ -492,7 +492,7 @@ class DynamicOperations(Operations):
                                 for l, protocol in enumerate(protocolsSGL):
                                     if(lp.get(T_c[0][i][k][l][j])):
                                         controller.transport(protocol, data,
-                                                             satellite, station)
+                                                             satellite, station, context)
                                         controller.resolve(contract, context)
                         elif satellite in satellitesISL:
                             isl_i = satellitesISL.index(satellite)
@@ -500,7 +500,7 @@ class DynamicOperations(Operations):
                                 for l, protocol in enumerate(protocolsISL):
                                     if(lp.get(L_c[0][isl_i][k][l][j])):
                                         controller.transport(protocol, data,
-                                                             satellite, rxSatellite)
+                                                             satellite, rxSatellite, context)
                                         _transportContract(operations, rxSatellite,
                                                            contract, context)
                 def _transportDemand(operations, satellite, demand, context):
@@ -521,7 +521,7 @@ class DynamicOperations(Operations):
                                 for l, protocol in enumerate(protocolsSGL):
                                     if(lp.get(T_d[0][i][k][l][j])):
                                         controller.transport(protocol, data,
-                                                             satellite, station)
+                                                             satellite, station, context)
                                         controller.resolve(contract, context)
                         elif satellite in satellitesISL:
                             isl_i = satellitesISL.index(satellite)
@@ -529,7 +529,7 @@ class DynamicOperations(Operations):
                                 for l, protocol in enumerate(protocolsISL):
                                     if(lp.get(L_d[0][isl_i][k][l][j])):
                                         controller.transport(protocol, data,
-                                                             satellite, rxSatellite)
+                                                             satellite, rxSatellite, context)
                                         _transportDemand(operations, rxSatellite,
                                                          demand, context)
                 
@@ -589,7 +589,7 @@ class DynamicOperations(Operations):
                         _transportContract(self, satellite, contract, context)
 
 class FixedCostDynamicOperations(DynamicOperations):
-    def __init__(self, planningHorizon=6, storagePenalty=-10,
+    def __init__(self, planningHorizon=6, storagePenalty=-100,
                  islPenalty=-10, costSGL=50, costISL=20):
         """
         @param planningHorizon: the planning horizon
@@ -765,7 +765,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                                                   if controller.couldTransport(
                                                     protocol, demand.generateData(),
                                                     satellite, station,
-                                                    txLocation, rxLocation)
+                                                    txLocation, rxLocation, context)
                                                   and not demand.isDefaultedAt(
                                                     time-context.time)
                                                   else 0)
@@ -782,7 +782,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                                                   if controller.couldTransport(
                                                     protocol, contract.demand.generateData(),
                                                     satellite, station,
-                                                    txLocation, rxLocation)
+                                                    txLocation, rxLocation, context)
                                                   and not contract.demand.isDefaultedAt(
                                                     contract.elapsedTime + time-context.time)
                                                   else 0)
@@ -857,7 +857,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                                                   if controller.couldTransport(
                                                     protocol, demand.generateData(),
                                                     txSatellite, rxSatellite,
-                                                    txLocation, rxLocation)
+                                                    txLocation, rxLocation, context)
                                                   and not demand.isDefaultedAt(
                                                     time-context.time)
                                                   else 0)
@@ -879,7 +879,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                                                   if controller.couldTransport(
                                                     protocol, contract.demand.generateData(),
                                                     txSatellite, rxSatellite,
-                                                    txLocation, rxLocation)
+                                                    txLocation, rxLocation, context)
                                                   and not contract.demand.isDefaultedAt(
                                                     contract.elapsedTime + time-context.time)
                                                   else 0)
@@ -1091,7 +1091,6 @@ class FixedCostDynamicOperations(DynamicOperations):
                         if data is not None:
                             if lp.get(R_c[0][R_i][j]) > 0:
                                 controller.resolve(contract, context)
-                                pass
                             elif (satellite in ownSatellites
                                   and lp.get(E_c[0][ownSatellites.index(satellite)][j]) > 0):
                                 satellite.store(data)
@@ -1102,7 +1101,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                                     for l, protocol in enumerate(protocolsSGL):
                                         if(lp.get(T_c[0][i][k][l][j])):
                                             controller.transport(protocol, data,
-                                                                 satellite, station)
+                                                                 satellite, station, context)
                                             controller.resolve(contract, context)
                                             if station not in ownStations:
                                                 supplier = context.getElementOwner(station)
@@ -1119,7 +1118,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                                     for l, protocol in enumerate(protocolsISL):
                                         if(lp.get(L_c[0][isl_i][k][l][j])):
                                             controller.transport(protocol, data,
-                                                                 satellite, rxSatellite)
+                                                                 satellite, rxSatellite, context)
                                             _transportContract(operations, rxSatellite,
                                                                contract, context)
                                             if rxSatellite not in ownSatellites:
@@ -1140,7 +1139,6 @@ class FixedCostDynamicOperations(DynamicOperations):
                         if contract is not None and data is not None:
                             if lp.get(R_d[0][R_i][j]) > 0:
                                 controller.resolve(contract, context)
-                                pass
                             elif (satellite in ownSatellites
                                   and lp.get(E_d[0][ownSatellites.index(satellite)][j]) > 0):
                                 satellite.store(data)
@@ -1151,7 +1149,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                                     for l, protocol in enumerate(protocolsSGL):
                                         if(lp.get(T_d[0][i][k][l][j])):
                                             controller.transport(protocol, data,
-                                                                 satellite, station)
+                                                                 satellite, station, context)
                                             controller.resolve(contract, context)
                                             if station not in ownStations:
                                                 supplier = context.getElementOwner(station)
@@ -1167,7 +1165,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                                     for l, protocol in enumerate(protocolsISL):
                                         if(lp.get(L_d[0][isl_i][k][l][j])):
                                             controller.transport(protocol, data,
-                                                                 satellite, rxSatellite)
+                                                                 satellite, rxSatellite, context)
                                             _transportDemand(operations, rxSatellite,
                                                              demand, context)
                                             if rxSatellite not in ownSatellites:

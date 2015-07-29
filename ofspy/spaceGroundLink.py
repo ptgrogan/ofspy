@@ -45,7 +45,7 @@ class SpaceGroundLink(Transceiver):
                              maxTransmitted=maxTransmitted,
                              maxReceived=maxReceived)
     
-    def couldTransmit(self, data, receiver, txLocation, rxLocation):
+    def couldTransmit(self, data, receiver, txLocation, rxLocation, context=None):
         """
         Checks if this space-to-ground link could transmit data (state-independent).
         @param data: the data to transmit
@@ -56,6 +56,8 @@ class SpaceGroundLink(Transceiver):
         @type txLocation: L{Location}
         @param rxLocation: the receiver location
         @type rxLocation: L{Location}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
         return super(SpaceGroundLink, self).couldTransmit(data, receiver) \
@@ -63,7 +65,7 @@ class SpaceGroundLink(Transceiver):
                 and rxLocation.isSurface() \
                 and txLocation.sector == rxLocation.sector
         
-    def couldReceive(self, data, transmitter, txLocation, rxLocation):
+    def couldReceive(self, data, transmitter, txLocation, rxLocation, context=None):
         """
         Checks if this space-to-ground link could receive data (state-independent).
         @param data: the data to transmit
@@ -74,6 +76,8 @@ class SpaceGroundLink(Transceiver):
         @type txLocation: L{Location}
         @param rxLocation: the receiver location
         @type rxLocation: L{Location}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
         return super(SpaceGroundLink, self).couldReceive(data, transmitter) \

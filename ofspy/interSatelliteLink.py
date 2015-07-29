@@ -45,7 +45,7 @@ class InterSatelliteLink(Transceiver):
                              maxTransmitted=maxTransmitted,
                              maxReceived=maxReceived)
     
-    def couldTransmit(self, data, receiver, txLocation, rxLocation):
+    def couldTransmit(self, data, receiver, txLocation, rxLocation, context):
         """
         Checks if this inter-satellite link could transmit data (state-independent).
         @param data: the data to transmit
@@ -56,16 +56,18 @@ class InterSatelliteLink(Transceiver):
         @type txLocation: L{Location}
         @param rxLocation: the receiver location
         @type rxLocation: L{Location}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
         return super(InterSatelliteLink, self).couldTransmit(data, receiver) \
                 and txLocation.isOrbit() \
                 and rxLocation.isOrbit() \
                 and (abs(txLocation.sector - rxLocation.sector) <= 1
-                     or abs(txLocation.sector - rxLocation.sector) >= 5)
-                     # TODO make independent of number of sectors
+                     or abs(txLocation.sector - rxLocation.sector)
+                     >= context.getNumSectors() - 1)
         
-    def couldReceive(self, data, transmitter, txLocation, rxLocation):
+    def couldReceive(self, data, transmitter, txLocation, rxLocation, context):
         """
         Checks if this inter-satellite link could receive data (state-independent).
         @param data: the data to transmit
@@ -76,14 +78,16 @@ class InterSatelliteLink(Transceiver):
         @type txLocation: L{Location}
         @param rxLocation: the receiver location
         @type rxLocation: L{Location}
+        @param context: the context
+        @type context: L{Context}
         @return: L{bool}
         """
         return super(InterSatelliteLink, self).couldReceive(data, transmitter) \
                 and txLocation.isOrbit() \
                 and rxLocation.isOrbit() \
                 and (abs(txLocation.sector - rxLocation.sector) <= 1
-                     or abs(txLocation.sector - rxLocation.sector) >= 5)
-                     # TODO make independent of number of sectors
+                     or abs(txLocation.sector - rxLocation.sector) 
+                     >= context.getNumSectors() - 1)
         
     def isISL(self):
         """
