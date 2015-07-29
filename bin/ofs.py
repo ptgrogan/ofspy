@@ -17,6 +17,7 @@ limitations under the License.
 import argparse
 import logging
 import math
+import re
 import sys,os
 # add ofspy to system path
 sys.path.append(os.path.abspath('..'))
@@ -27,11 +28,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="This program runs an Orbital Federates simulation.")
     parser.add_argument('elements', type=str, nargs='+',
                         help='the list of initial elements, e.g. 1.GroundSta@SUR1,pSGL 1.SmallSat@LEO1,pSGL,SAR')
-    parser.add_argument('-d', '--numTurns', type=int, default=24,
+    parser.add_argument('-d', '--numTurns', type=int, default=None,
                         help='simulation duration (number of turns)')
-    parser.add_argument('-p', '--numPlayers', type=int, default=1,
+    parser.add_argument('-p', '--numPlayers', type=int, default=None,
                         help='number of players')
-    parser.add_argument('-i', '--initialCash', type=int, default=1200,
+    parser.add_argument('-i', '--initialCash', type=int, default=None,
                         help='initial cash')
     parser.add_argument('-s', '--seed', type=int, default=0,
                         help='random number seed')
@@ -56,8 +57,22 @@ if __name__ == '__main__':
         level = logging.ERROR
     logging.basicConfig(level=level)
     
+    if args.numPlayers is None:
+        numPlayers = 0
+        for element in args.elements:
+            specs = element.split(',')
+            if len(specs) > 0 and len(specs[0].split('@')) == 2:
+                # parse player ownership
+                if len(specs[0].split('@')[0].split('.')) == 2:
+                    pId = int(specs[0].split('@')[0].split('.')[0])-1
+                else:
+                    pId = 0
+                numPlayers = max(numPlayers, pId+1)
+    else:
+        numPlayers = args.numPlayers
+    
     ofs = OFS(elements=args.elements, numTurns=args.numTurns,
-                  numPlayers=args.numPlayers, initialCash=args.initialCash,
+                  numPlayers=numPlayers, initialCash=args.initialCash,
                   seed=args.seed, ops=args.ops, fops=args.fops)
     
     if args.gui:

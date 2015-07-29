@@ -46,7 +46,7 @@ class Game(object):
     A L{Game} contains the complete game specification.
     """
     
-    def __init__(self, numPlayers=1, initialCash=1200,
+    def __init__(self, numPlayers, initialCash,
                  altitudes=['LEO','MEO','GEO'], numSectors=6):
         """
         @param numPlayers: the number of players (federates)

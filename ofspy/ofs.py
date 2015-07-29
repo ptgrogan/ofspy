@@ -21,9 +21,8 @@ from .game import Game
 from .simulator import Simulator
 
 class OFS(object):
-    def __init__(self, elements=None, numPlayers=1,
-                 initialCash=1200, numTurns=12,
-                 seed=0, ops='d', fops=''):
+    def __init__(self, elements, numPlayers, initialCash,
+                 numTurns, seed, ops, fops):
         """
         @param elements: elements
         @type elements: L{str}
@@ -82,7 +81,8 @@ class OFS(object):
                             
             for i, elementSet in enumerate(elementSets):
                 federate = federates[i]
-                if federate.initialCash == 0:
+                if federate.initialCash is None or federate.initialCash == 0:
+                    federate.initialCash = 0
                     # special case if 0 initial cash: grant enough for initial element
                     for element in elementSet:
                         federate.initialCash += element['element'].getDesignCost()
