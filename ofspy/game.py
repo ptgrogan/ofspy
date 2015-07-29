@@ -75,7 +75,7 @@ class Game(object):
                            'valueSchedule':ValueSchedule([(2,500),(5,400)], -100)}),
             (8, 'demand', {'type':'VIS3', 'phenomenon':'VIS', 'size':1,
                            'valueSchedule':ValueSchedule([(3,450),(6,350)], -150)}),
-            (0, 'disturb', {'type':'Debris', 'hitChance':1/6, 'maxHits':1})
+            (0, 'disturb', {'type':'Debris', 'hitChance':1./6, 'maxHits':1})
         ]
         self.satelliteTypes = [
             {'type':'SmallSat', 'cost':200, 'capacity':2},
