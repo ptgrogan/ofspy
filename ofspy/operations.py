@@ -349,20 +349,21 @@ class DynamicOperations(Operations):
                 R_d.insert(t, [])
                 R_c.insert(t, [])
                 for i, element in enumerate(elements):
+                    location = context.propagate(element.location, time-context.time)
                     R_d[t].insert(i, [])
                     R_c[t].insert(i, [])
                     for j, demand in enumerate(demands):
                         R_d[t][i].insert(j, lp.addColumn('{}-R-{}@{}'.format(
                             element.name, demand.name, time), True))
                         J.add(R_d[t][i][j], demand.getValueAt(time-context.time)
-                              if element.isGround()
+                              if demand.isCompletedAt(location)
                               else demand.getDefaultValue())
                     for j, contract in enumerate(contracts):
                         R_c[t][i].insert(j, lp.addColumn('{}-R-{}@{}'.format(
                             element.name, contract.name, time), True))
                         J.add(R_c[t][i][j], contract.demand.getValueAt(
                             contract.elapsedTime + time-context.time)
-                              if element.isGround()
+                              if contract.demand.isCompletedAt(location)
                               else contract.demand.getDefaultValue())
                 for i, satellite in enumerate(satellites):
                     R_i = elements.index(satellite)
@@ -443,14 +444,16 @@ class DynamicOperations(Operations):
                 for j, demand in enumerate(demands):
                     if federate.canContract(demand, context): # TODO does not consider priority
                         for i, element in enumerate(elements):
+                            location = context.propagate(element.location, time-context.time)
                             r.add(R_d[0][i][j], (demand.getValueAt(0)
-                                                 if element.isGround()
+                                                 if demand.isCompletedAt(location)
                                                  else demand.getDefaultValue()))
                 for j, contract in enumerate(contracts):
                     if contract in federate.contracts:
                         for i, element in enumerate(elements):
+                            location = context.propagate(element.location, time-context.time)
                             r.add(R_c[0][i][j], (contract.demand.getValueAt(contract.elapsedTime)
-                                                 if element.isGround()
+                                                 if contract.demand.isCompletedAt(location)
                                                  else contract.demand.getDefaultValue()))
                 lp.addConstraint(r, 'GE', -1 - federate.cash,
                                  '{} net cash must be positive'
@@ -923,20 +926,21 @@ class FixedCostDynamicOperations(DynamicOperations):
                     R_d.insert(t, [])
                     R_c.insert(t, [])
                     for i, element in enumerate(allElements):
+                        location = context.propagate(element.location, time-context.time)
                         R_d[t].insert(i, [])
                         R_c[t].insert(i, [])
                         for j, demand in enumerate(demands):
                             R_d[t][i].insert(j, lp.addColumn('{}-R-{}@{}'.format(
                                 element.name, demand.name, time), True))
                             J.add(R_d[t][i][j], demand.getValueAt(time-context.time)
-                                  if element.isGround()
+                                  if demand.isCompletedAt(location)
                                   else demand.getDefaultValue())
                         for j, contract in enumerate(ownContracts):
                             R_c[t][i].insert(j, lp.addColumn('{}-R-{}@{}'.format(
                                 element.name, contract.name, time), True))
                             J.add(R_c[t][i][j], contract.demand.getValueAt(
                                 contract.elapsedTime + time-context.time)
-                                  if element.isGround()
+                                  if contract.demand.isCompletedAt(location)
                                   else contract.demand.getDefaultValue())
                     for i, satellite in enumerate(allSatellites):
                         R_i = allElements.index(satellite)
@@ -1025,8 +1029,9 @@ class FixedCostDynamicOperations(DynamicOperations):
                 r = Row()
                 for l, demand in enumerate(demands):
                     for i, element in enumerate(allElements):
+                        location = context.propagate(element.location, time-context.time)
                         r.add(R_d[0][i][l], (demand.getValueAt(0)
-                                             if element.isGround()
+                                             if demand.isCompletedAt(location)
                                              else demand.getDefaultValue()))
                     for i, satellite in enumerate(allSatellites):
                         for j, station in enumerate(allStations):
@@ -1042,8 +1047,9 @@ class FixedCostDynamicOperations(DynamicOperations):
                                           -1*self.costISL*demand.size)
                 for l, contract in enumerate(ownContracts):
                     for i, element in enumerate(allElements):
+                        location = context.propagate(element.location, time-context.time)
                         r.add(R_c[0][i][l], (contract.demand.getValueAt(contract.elapsedTime)
-                                             if element.isGround()
+                                             if contract.demand.isCompletedAt(location)
                                              else contract.demand.getDefaultValue()))
                     for i, satellite in enumerate(allSatellites):
                         for j, station in enumerate(allStations):

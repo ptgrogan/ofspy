@@ -73,6 +73,15 @@ class Demand(Event):
         """
         return time > self.getDefaultTime()
     
+    def isCompletedAt(self, location):
+        """
+        Checks if this demand is completed at a location.
+        @param location: the location
+        @type location: L{Location}
+        @return: L{bool}
+        """
+        return location is not None and location.isSurface()
+    
     def getDefaultValue(self):
         """
         Gets the defaulted value of this demand.
