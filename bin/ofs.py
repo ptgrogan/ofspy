@@ -61,13 +61,12 @@ if __name__ == '__main__':
                   seed=args.seed, ops=args.ops, fops=args.fops)
     
     if args.gui:
-        ofs.sim.init()
-            
         from Tkinter import Tk
         from ofspy_gui.frame import FrameOFS
         
         root = Tk()
         frame = FrameOFS(root, ofs)
+        ofs.sim.init()
         root.mainloop()
     else:
         results = ofs.execute()
