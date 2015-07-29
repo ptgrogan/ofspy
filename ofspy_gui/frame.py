@@ -20,15 +20,21 @@ from Tkinter import *
 from PIL import Image, ImageTk
 
 from .canvas import CanvasOFS
+from .log import LogOFS
 
 
 class FrameOFS(Frame):
-    def __init__(self, root, ofs=None):
+    def __init__(self, root, ofs):
         Frame.__init__(self, root)
         self.pack(fill=BOTH, expand=YES)
         
         canvas = CanvasOFS(root, ofs)
-        canvas.draw()
+        log = LogOFS(root, ofs)
+        
+        canvas.pack(side=LEFT, fill=BOTH)
+        log.pack(side=RIGHT, fill=BOTH)
+        
+        self.after(100, canvas.draw)
         
         root.title("Orbital Federates Simulation")
         if "nt" == os.name:
