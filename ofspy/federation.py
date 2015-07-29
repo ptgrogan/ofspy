@@ -78,6 +78,7 @@ class Federation(Controller):
             self.federates.append(federate)
             logging.info('{0} joined {1}'
                          .format(federate.name, self.name))
+            self.trigger('join', self, federate)
             return True
         return False
     
@@ -95,6 +96,7 @@ class Federation(Controller):
             self.federates.remove(federate)
             logging.info('{0} quit {1}'
                          .format(federate.name, self.name))
+            self.trigger('quit', self, federate)
             return True
         return False
 

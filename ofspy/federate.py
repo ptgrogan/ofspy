@@ -94,6 +94,7 @@ class Federate(Controller):
             logging.info('{0} designed {1} for {2}'
                         .format(self.name, element.name,
                                 element.getDesignCost()))
+            self.trigger('design', self, element)
             return True
         return False
     
@@ -119,6 +120,7 @@ class Federate(Controller):
                         .format(self.name, element.name,
                                 element.getCommissionCost(location, context)))
             self.cash -= element.getCommissionCost(location, context)
+            self.trigger('commission', self, element)
             return True
         else:
             logging.warning('{0} could not commission {1}.'
@@ -140,6 +142,7 @@ class Federate(Controller):
             # self.cash += element.getDecommissionValue()
             logging.info('{0} decommissioned {1} for {2}.'.format(
                 self.name, element.name, element.getDecommissionValue()))
+            self.trigger('decommission', self, element)
             return True
         return False
         
@@ -158,6 +161,7 @@ class Federate(Controller):
             self.contracts.append(contract)
             logging.info('{0} contracted for {1}'
                         .format(self.name, demand.name))
+            self.trigger('contract', self, demand)
             return contract
         else:
             logging.warning('{0} could not contract for {1}'
@@ -177,13 +181,13 @@ class Federate(Controller):
             logging.warning('{0} does not own {1}.'
                         .format(self.name, contract.name))
         else:
-            self.cash += contract.getValue()
-            self.deleteData(contract)
+            value = contract.getValue()
+            self.cash += value
             self.contracts.remove(contract)
             context.pastEvents.append(contract.demand)
             logging.info('{0} resolved {1} for {2} cash'
-                        .format(self.name, contract.name,
-                                contract.getValue()))
+                        .format(self.name, contract.name, value))
+            self.trigger('resolve', self, contract, value)
             return True
         return False
     

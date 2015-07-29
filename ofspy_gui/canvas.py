@@ -32,6 +32,9 @@ class CanvasOFS(Canvas):
         
         self.ofs = ofs
         self.context = ofs.context
+        for federation in self.context.federations:
+            self.handleFederation(federation)
+        
         self.pack(fill=BOTH, expand=YES)
         self.padding = 5
         
@@ -65,14 +68,116 @@ class CanvasOFS(Canvas):
         self.numFrames = 10
         self.frameRate = 20
         
-        """
         image = Image.open(pkg_resources.resource_filename(
             __name__, 'resources/background.jpg'))
         image = image.resize((int(self.WIDTH*self.scale),
                               int(self.HEIGHT*self.scale)), Image.ANTIALIAS)
         self.backgroundImage = ImageTk.PhotoImage(image)
-        """
-        
+    
+    def handleFederation(self, federation):
+        federation.on('join', self.federationJoin)
+        federation.on('quit', self.federationQuit)
+        federation.on('exchange', self.federationExchange)
+        federation.on('transport', self.controllerTransport)
+        federation.on('sense', self.controllerSense)
+        for federate in federation.federates:
+            self.handleFederate(federate)
+    def handleFederate(self, federate):
+        federate.on('design', self.federateDesign)
+        federate.on('commission', self.federateCommission)
+        federate.on('decommission', self.federateDecommission)
+        federate.on('contract', self.federateContract)
+        federate.on('resolve', self.federateResolve)
+        federate.on('transport', self.controllerTransport)
+        federate.on('sense', self.controllerSense)
+        for element in federate.elements:
+            self.handleElement(element)
+    def handleElement(self, element):
+        element.on('store', self.elementStore)
+        element.on('sense', self.elementSense)
+        element.on('transfer', self.elementTransfer)
+        element.on('transmit', self.elementTransmit)
+        element.on('receive', self.elementReceive)
+        for module in element.modules:
+            self.handleModule(module)
+    def handleModule(self, module):
+        module.on('store', self.moduleStore)
+        module.on('sense', self.moduleSense)
+        module.on('transferOut', self.moduleTransferOut)
+        module.on('transferIn', self.moduleTransferIn)
+        module.on('exchange', self.moduleExchange)
+        module.on('transmit', self.moduleTransmit)
+        module.on('receive', self.moduleReceive)
+    
+    def federationJoin(self, federation, federate):
+        print '{} joined {}'.format(
+            federate.name, federation.name)
+        self.handleFederate(federate)
+    def federationQuit(self, federation, federate):
+        print '{} quit {}'.format(
+            federate.name, federation.name)
+    def federationExchange(self, federation, amount, debtor, creditor):
+        print '{} paid {} to {}'.format(
+            debtor.name, amount, creditor.name)
+    def federateDesign(self, federate, element):
+        print '{} designed {}'.format(
+            federate.name, element.name)
+    def federateCommission(self, federate, element):
+        print '{} commissioned {}'.format(
+            federate.name, element.name)
+        self.handleElement(element)
+    def federateDecommission(self, federate, element):
+        print '{} decommissioned {}'.format(
+            federate.name, element.name)
+    def federateContract(self, federate, demand):
+        print '{} contracted {}'.format(
+            federate.name, demand.name)
+    def federateResolve(self, federate, contract, value):
+        print '{} resolved {} for {}'.format(
+            federate.name, contract.name, value)
+    def controllerTransport(self, controller, protocol, data, txElement, rxElement):
+        print '{} transported {} from {} to {} using {}'.format(
+            controller.name, data, txElement.name, rxElement.name, protocol)
+    def controllerSense(self, controller, contract, element):
+        print '{} sensed {} using {}'.format(
+            controller.name, contract.demand.name, element.name)
+    def elementStore(self, element, data):
+        print '{} stored {}'.format(
+            element.name, data)
+    def elementSense(self, element, contract):
+        print '{} sensed {}'.format(
+            element.name, contract.name)
+    def elementTransfer(self, element, data, origin, destination):
+        print '{} transfered {} from {} to {}'.format(
+            element.name, data, origin.name, destination.name)
+    def elementTransmit(self, element, protocol, data, rxElement):
+        print '{} transmitted {} to {} using {}'.format(
+            element.name, data, protocol, rxElement.name)
+    def elementReceive(self, element, protocol, data, txElement):
+        print '{} received {} from {} using {}'.format(
+            element.name, data, protocol, txElement.name)
+    def moduleStore(self, module, data):
+        print '{} stored {}'.format(
+            module.name, data)
+    def moduleSense(self, module, contract):
+        print '{} sensed {}'.format(
+            module.name, contract.name)
+    def moduleTransferOut(self, module, data):
+        print '{} transferred out {}'.format(
+            module.name, data)
+    def moduleTransferIn(self, module, data):
+        print '{} transferred in {}'.format(
+            module.name, data)
+    def moduleExchange(self, module, data, otherModule):
+        print '{} exchanged {} with {}'.format(
+            module.name, data, otherModule.name)
+    def moduleTransmit(self, module, data, receiver):
+        print '{} transmitted {} to {}'.format(
+            module.name, data, receiver.name)
+    def moduleReceive(self, module, data, transmitter):
+        print '{} received {} from {}'.format(
+            module.name, data, transmitter.name)
+    
     def advance(self, event):
         if not self.animating:
             self.animate(0)
@@ -198,6 +303,20 @@ class CanvasOFS(Canvas):
     def drawContract(self, contract, location, tags=()):
         self.drawDemand(contract.demand, location, tags, contract.elapsedTime)
     
+    def drawDisturbance(self, disturbance, location, tags=()):
+        size = self.demandSize
+        self.create_oval(location[0] - size/4,
+                         location[1] - size/4,
+                         location[0] + size/4,
+                         location[1] + size/4,
+                         fill= 'white',
+                         outline='red', width=2.0)
+        self.create_text(location[0],
+                         location[1] + size/2+self.padding,
+                         text=disturbance.name,
+                         fill='black',
+                         anchor='n')
+    
     def drawDemand(self, demand, location, tags=(), elapsedTime=None):
         size = self.demandSize
         for t in range(0 if elapsedTime==None else elapsedTime,8):
@@ -222,7 +341,7 @@ class CanvasOFS(Canvas):
         self.drawData(demand.generateData(), location)
     
     def drawContext(self):
-        # self.create_image(0, 0, image=self.backgroundImage, anchor=NW)
+        self.create_image(0, 0, image=self.backgroundImage, anchor=NW)
         center = (self.winfo_reqwidth()/2, self.winfo_reqheight()/2)
         
         self.create_text(center[0], self.padding,
@@ -285,10 +404,15 @@ class CanvasOFS(Canvas):
                 self.drawElement(e, self.getElementLocation(e, frame))
             if frame <= 0:
                 for e in [e for e in self.context.currentEvents
-                          if e.sector == i and e.isDemand()]:
-                    self.drawDemand(
-                        e, (center[0] + int(self.demandRadius*math.cos(theta)),
-                            center[1] + int(self.demandRadius*math.sin(theta))))
+                          if e.sector == i]:
+                    if e.isDemand():
+                        self.drawDemand(
+                            e, (center[0] + int(self.demandRadius*math.cos(theta)),
+                                center[1] + int(self.demandRadius*math.sin(theta))))
+                    elif e.isDisturbance():
+                        self.drawDisturbance(
+                            e, (center[0] + int(self.demandRadius*math.cos(theta)),
+                                center[1] + int(self.demandRadius*math.sin(theta))))
         
         for i, f in enumerate(federates):
             self.drawFederate(

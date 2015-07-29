@@ -206,6 +206,7 @@ class Element(Entity):
                 logging.debug(
                     '{0} transmitted {1} to {2} via {3}'
                     .format(self.name, str(data), rxElement.name, protocol))
+                self.trigger('transmit', self, protocol, data, rxElement)
                 return True
         logging.warning('{0} could not transmit {1} to {2} via {3}'
                         .format(self.name, str(data), rxElement.name, protocol))
@@ -283,6 +284,7 @@ class Element(Entity):
                 logging.debug(
                     '{0} received {1} from {2} via {3}'
                     .format(self.name, str(data), txElement.name, protocol))
+                self.trigger('receive', self, protocol, data, txElement)
                 return True
         logging.warning('{0} could not receive {1} from {2} via {3}'
                         .format(self.name, str(data), txElement.name, protocol))
@@ -345,12 +347,14 @@ class Element(Entity):
                 logging.debug(
                     '{0} transferred {1} between modules'
                     .format(self.name, str(data)))
+                self.trigger('transfer', self, data, origin, destination)
                 return True
             elif origin.canExchange(data, destination) \
                     and origin.exchange(data, destination):
                 logging.debug(
                     '{0} exchanged {1} between modules'
                     .format(self.name, str(data)))
+                self.trigger('transfer', self, data, origin, destination)
                 return True
         logging.warning('{0} could not transfer {1} between modules'
                         .format(self.name, str(data)))
@@ -404,6 +408,7 @@ class Element(Entity):
                     logging.debug(
                         '{0} stored new {1} in a storage module'
                         .format(self.name, str(data)))
+                    self.trigger('store', self, data)
                     return True
                 elif any(m.isStorage()
                         and m.isSensor()
@@ -413,6 +418,7 @@ class Element(Entity):
                     logging.debug(
                         '{0} stored new {1} in a sensor module'
                         .format(self.name, str(data)))
+                    self.trigger('store', self, data)
                     return True
             else:
                 if (container.isStorage()
@@ -420,6 +426,7 @@ class Element(Entity):
                     logging.debug(
                         '{0} already stored {1} in a sensor module'
                         .format(self.name, str(data)))
+                    self.trigger('store', self, data)
                     return True
                 elif (any(m.isStorage()
                           and m.isSensor()
@@ -430,12 +437,14 @@ class Element(Entity):
                     logging.debug(
                         '{0} stored {1} in a sensor module'
                         .format(self.name, str(data)))
+                    self.trigger('store', self, data)
                     return True
                 elif (container.isStorage()
                       and not container.isSensor()):
                     logging.debug(
                         '{0} already stored {1} in a storage module'
                         .format(self.name, str(data)))
+                    self.trigger('store', self, data)
                     return True
                 elif (any(m.isStorage()
                           and not m.isSensor()
@@ -446,6 +455,7 @@ class Element(Entity):
                     logging.debug(
                         '{0} stored {1} in a storage module'
                         .format(self.name, str(data)))
+                    self.trigger('store', self, data)
                     return True
         else:
             # cannot directly store data: try to exchange
@@ -522,6 +532,7 @@ class Element(Entity):
                                 for d in m.data))
                     and m.senseAndStore(self.location, contract)
                     for m in self.modules):
+                self.trigger('sense', self, contract)
                 return True
         logging.warning('{0} could not sense and store {1}'
                         .format(self.name, contract.name))

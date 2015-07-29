@@ -91,6 +91,7 @@ class Module(Entity):
                     and module.transferOut(otherData) \
                     and self.transferIn(otherData) \
                     and module.transferIn(data):
+                self.trigger('exchange', self, data, module)
                 return True
         return False
     
@@ -123,6 +124,7 @@ class Module(Entity):
         """
         if self.canTransferIn(data):
             self.data.append(data)
+            self.trigger('transferIn', self, data)
             return True
         return False
     
@@ -153,6 +155,7 @@ class Module(Entity):
         """
         if self.canTransferOut(data):
             self.data.remove(data)
+            self.trigger('transferOut', self, data)
             return True
         return False
     

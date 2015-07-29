@@ -18,7 +18,9 @@ limitations under the License.
 Simulator class.
 """
 
-class Simulator(object):
+from .observable import Observable
+
+class Simulator(Observable):
     def __init__(self, entities=None, initTime=0, timeStep=1, maxTime=10):
         """
         @param entities: the set of entities
@@ -30,6 +32,7 @@ class Simulator(object):
         @param maxTime: the maximum simulation time
         @type maxTime: L{float}
         """
+        Observable.__init__(self)
         if entities is None:
             self.entities = []
         else:
@@ -37,7 +40,6 @@ class Simulator(object):
         self.timeStep = timeStep
         self.initTime = initTime
         self.maxTime = maxTime
-        self.handlers = {}
     
     def entity(self, name):
         return next((e for e in self.entities if e.name == name), None)
@@ -58,7 +60,6 @@ class Simulator(object):
             self.trigger('advance', self.time)
             if self.isComplete():
                 self.trigger('complete', self.time)
-        
     
     def execute(self):
         self.init()
@@ -68,19 +69,3 @@ class Simulator(object):
     def isComplete(self):
         return (self.time >= self.maxTime
                 if self.maxTime is not None else False)
-    
-    def trigger(self, event, data):
-        if event in self.handlers:
-            for handler in self.handlers[event]:
-                handler(data)
-                
-    def on(self, events, handler):
-        for event in events.split(' '):
-            if event not in self.handlers:
-                self.handlers[event] = []
-            self.handlers[event].append(handler)
-    
-    def off(self, events, handler):
-        for event in events.split(' '):
-            if event in self.handler:
-                self.handlers[event].remove(handler)

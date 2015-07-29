@@ -20,12 +20,15 @@ Entity class.
 
 import uuid
 
-class Entity(object):
+from .observable import Observable
+
+class Entity(Observable):
     def __init__(self, name=None):
         """
         @param name: the name of this entity
         @type sim: L{str}
         """
+        Observable.__init__(self)
         if name is None:
             self.name = uuid.uuid4
         else:

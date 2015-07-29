@@ -96,6 +96,7 @@ class Transceiver(Module):
                 and self.canTransferOut(data) \
                 and self.transferOut(data):
             self.transmitted += data.size
+            self.trigger('transmit', self, data, receiver)
             return True
         return False
     
@@ -145,6 +146,7 @@ class Transceiver(Module):
         if self.canReceive(data, transmitter, txLocation, rxLocation) \
                 and self.transferIn(data):
             self.received += data.size
+            self.trigger('receive', self, data, transmitter)
             return True
         return False
     

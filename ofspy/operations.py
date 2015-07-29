@@ -1084,8 +1084,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                         data = context.getData(contract)
                         if data is not None:
                             if lp.get(R_c[0][R_i][j]) > 0:
-                                # don't default in federation operations
-                                # federate.resolve(contract, context)
+                                controller.resolve(contract, context)
                                 pass
                             elif (satellite in ownSatellites
                                   and lp.get(E_c[0][ownSatellites.index(satellite)][j]) > 0):
@@ -1098,14 +1097,16 @@ class FixedCostDynamicOperations(DynamicOperations):
                                         if(lp.get(T_c[0][i][k][l][j])):
                                             controller.transport(protocol, data,
                                                                  satellite, station)
-                                            federate.resolve(contract, context)
+                                            controller.resolve(contract, context)
                                             if station not in ownStations:
-                                                federate.cash -= operations.costSGL
                                                 supplier = context.getElementOwner(station)
-                                                supplier.cash += operations.costSGL
-                                                logging.info('{} paid {} {} for SGL services'
-                                                             .format(federate, supplier,
-                                                                     operations.costSGL))
+                                                controller.exchange(operations.costSGL,
+                                                                    federate, supplier)
+                                                logging.debug('{} paid {} to {} for SGL'
+                                                              .format(federate.name,
+                                                                      operations.costSGL,
+                                                                      supplier.name))
+                    
                             elif satellite in allSatellitesISL:
                                 isl_i = allSatellitesISL.index(satellite)
                                 for k, rxSatellite in enumerate(allSatellitesISL):
@@ -1116,12 +1117,14 @@ class FixedCostDynamicOperations(DynamicOperations):
                                             _transportContract(operations, rxSatellite,
                                                                contract, context)
                                             if rxSatellite not in ownSatellites:
-                                                federate.cash -= operations.costISL
                                                 supplier = context.getElementOwner(rxSatellite)
-                                                supplier.cash += operations.costISL
-                                                logging.info('{} paid {} {} for ISL services'
-                                                             .format(federate, supplier,
-                                                                     operations.costISL))
+                                                controller.exchange(operations.costISL,
+                                                                    federate, supplier)
+                                                logging.debug('{} paid {} to {} for ISL'
+                                                              .format(federate.name,
+                                                                      operations.costISL,
+                                                                      supplier.name))
+                    
                     def _transportDemand(operations, satellite, demand, context):
                         i = allSatellites.index(satellite)
                         R_i = allElements.index(satellite)
@@ -1130,8 +1133,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                         data = context.getData(contract)
                         if contract is not None and data is not None:
                             if lp.get(R_d[0][R_i][j]) > 0:
-                                # don't default in federation operations
-                                # federate.resolve(contract, context)
+                                controller.resolve(contract, context)
                                 pass
                             elif (satellite in ownSatellites
                                   and lp.get(E_d[0][ownSatellites.index(satellite)][j]) > 0):
@@ -1144,14 +1146,15 @@ class FixedCostDynamicOperations(DynamicOperations):
                                         if(lp.get(T_d[0][i][k][l][j])):
                                             controller.transport(protocol, data,
                                                                  satellite, station)
-                                            federate.resolve(contract, context)
+                                            controller.resolve(contract, context)
                                             if station not in ownStations:
-                                                federate.cash -= operations.costSGL
                                                 supplier = context.getElementOwner(station)
-                                                supplier.cash += operations.costSGL
-                                                logging.info('{} paid {} {} for SGL services'
-                                                             .format(federate, supplier,
-                                                                     operations.costSGL))
+                                                controller.exchange(operations.costSGL,
+                                                                    federate, supplier)
+                                                logging.debug('{} paid {} to {} for SGL'
+                                                              .format(federate.name,
+                                                                      operations.costSGL,
+                                                                      supplier.name))
                             elif satellite in allSatellitesISL:
                                 isl_i = allSatellitesISL.index(satellite)
                                 for k, rxSatellite in enumerate(allSatellitesISL):
@@ -1162,12 +1165,13 @@ class FixedCostDynamicOperations(DynamicOperations):
                                             _transportDemand(operations, rxSatellite,
                                                              demand, context)
                                             if rxSatellite not in ownSatellites:
-                                                federate.cash -= operations.costISL
                                                 supplier = context.getElementOwner(rxSatellite)
-                                                supplier.cash += operations.costISL
-                                                logging.info('{} paid {} {} for ISL services'
-                                                             .format(federate, supplier,
-                                                                     operations.costISL))
+                                                controller.exchange(operations.costISL,
+                                                                    federate, supplier)
+                                                logging.debug('{} paid {} to {} for ISL'
+                                                              .format(federate.name,
+                                                                      operations.costISL,
+                                                                      supplier.name))
                     
                     # first, transport contracts to resolution
                     for j, contract in enumerate(ownContracts):

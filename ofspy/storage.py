@@ -62,6 +62,7 @@ class Storage(Module):
         """
         if self.canStore(data):
             self.transferIn(data)
+            self.trigger('store', self, data)
             return True
         return False
     

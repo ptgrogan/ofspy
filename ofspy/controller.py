@@ -120,6 +120,7 @@ class Controller(Entity):
               and element.senseAndStore(contract)):
             logging.info('{0} sensed and stored data for {1} using {2}'
                         .format(self.name, contract.name, element.name))
+            self.trigger('sense', self, contract, element)
             return True
         else:
             logging.warning('{0} could not sense and store data for {1} using {2}'
@@ -205,6 +206,7 @@ class Controller(Entity):
                 logging.info('{0} transported {1} from {2} to {3} with {4}'
                             .format(self.name, str(data), txElement.name,
                                     rxElement.name, protocol))
+                self.trigger('transport', self, protocol, data, txElement, rxElement)
                 return True
         else:
             logging.warning('{0} could not transport {1} between {2} and {3} with {4}'
@@ -221,8 +223,9 @@ class Controller(Entity):
         for element in self.getElements():
             for module in element.modules:
                 for d in module.data[:]:
-                    if d.contract is contract:
-                        module.data.remove(d)
+                    if (d.contract is contract
+                        and module.canTransferOut(d)):
+                        module.transferOut(d)
         
     def contract(self, demand, context):
         """
@@ -254,9 +257,55 @@ class Controller(Entity):
         @return: L{bool}
         """
         if self.canResolve(contract):
-            return next((federate.resolve(contract, context)
+            if next((federate.resolve(contract, context)
                          for federate in self.getFederates()
-                         if federate.canResolve(contract)), None)
+                         if federate.canResolve(contract)), None) is not None:
+                self.deleteData(contract)
+                return True
         logging.warning('{0} could not resolve {1}.'
                     .format(self.name, contract.name))
+        return False
+    
+    def canExchange(self, amount, debtor, creditor):
+        """
+        Checks if this federation can exchange cash between federates.
+        @param amount: the amount of cash to exchange
+        @type amount: L{float}
+        @param debtor: the debtor federate
+        @type debtor: L{Federate}
+        @param creditor: the creditor federate
+        @type creditor: L{Federate}
+        @return: L{bool}
+        """
+        if debtor not in self.getFederates():
+            logging.warning('{} does not control {}'
+                            .format(self.name, debtor.name))
+        elif creditor not in self.federates:
+            logging.warning('{} does not control {}'
+                            .format(self.name, creditor.name))
+        elif amount > debtor.cash:
+            logging.warning('{} exceeds {} cash.'
+                            .format(amount, debtor.name))
+        else:
+            return True
+        return False
+    
+    def exchange(self, amount, debtor, creditor):
+        """
+        Exchanges cash between two federates in this federation.
+        @param amount: the amount of cash to exchange
+        @type amount: L{float}
+        @param debtor: the debtor federate
+        @type debtor: L{Federate}
+        @param creditor: the creditor federate
+        @type creditor: L{Federate}
+        @return: L{bool}
+        """
+        if self.canExchange(amount, debtor, creditor):
+            debtor.cash -= amount
+            creditor.cash += amount
+            logging.info('{} paid {} to {}'
+                         .format(debtor.name, amount, creditor.name))
+            self.trigger('exchange', self, amount, debtor, creditor)
+            return True
         return False

@@ -82,8 +82,9 @@ class Sensor(Storage):
         data = contract.demand.generateData(contract)
         if self.canSense(location, contract.demand) \
                 and self.canStore(data):
-            self.store(data)
             self.sensed += data.size
+            self.trigger('sense', self, contract)
+            self.store(data)
             return True
         return False
     
