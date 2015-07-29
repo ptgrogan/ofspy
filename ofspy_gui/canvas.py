@@ -138,7 +138,10 @@ class CanvasOFS(Canvas):
                           else 0)
             location = (center[0] + int(self.orbitRadius*math.cos(theta+deltaTheta)),
                         center[1] + int(self.orbitRadius*math.sin(theta+deltaTheta)))
-            return self.rotate(location, center, math.pi/(3*self.numFrames)*frame)
+            return self.rotate(location, center, math.pi/(3*self.numFrames)*frame
+                               *(1 if element.location.altitude=='MEO'
+                                 else 2 if element.location.altitude=='LEO'
+                                 else 0))
         
     def drawElement(self, element, location, tags=()):
         center = (self.winfo_reqwidth()/2, self.winfo_reqheight()/2)
