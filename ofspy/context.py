@@ -201,6 +201,7 @@ class Context(Entity):
         self.futureEvents = self.events[:]
         random.shuffle(self.futureEvents, random=self.shuffleStream.random)
         self.time = sim.initTime
+        self.trigger('init', self, self.time)
         self.initTime = sim.initTime
         self.maxTime = sim.maxTime
         for federation in self.federations:
@@ -217,45 +218,10 @@ class Context(Entity):
             federation.tick(sim)
         self._nextTime = self.time + sim.timeStep
     
-    def tock(self):
+    def revealEvents(self):
         """
-        Tocks this context in a simulation.
+        Reveal events.
         """
-        super(Context, self).tock()
-        for federation in self.federations:
-            federation.tock()
-            
-        for federate in [federate for federation in self.federations
-                         for federate in federation.federates]:
-            # default any failed contracts
-            for contract in federate.contracts[:]:
-                if contract.isDefaulted(self.getDataLocation(contract)):
-                    logging.warning('Auto-defaulting {0} for {1}'
-                                .format(contract.name, federate.name))
-                    federate.resolve(contract, self)
-            # liquidate bankrupt federates
-            if federate.cash < 0:
-                federate.liquidate(self)
-        
-        # debug log for spatial state
-        for location in self.locations:
-            if any(element for federation in self.federations
-                   for federate in federation.federates
-                   for element in federate.elements
-                   if element.location is location):
-             logging.debug('{0}'.format(location.name))
-             for element in [element for federation in self.federations
-                             for federate in federation.federates
-                             for element in federate.elements
-                             if element.location is location]:
-                 logging.debug('-{0}'.format(element.name))
-                 for module in element.modules:
-                    if len(module.data) > 0:
-                        logging.debug(' -{0}'.format(module.name))
-                        for d in module.data:
-                            logging.debug('  -{0} {1}'.format(d.phenomenon,
-                                                              d.contract))
-        
         # reveal and resolve new events in each sector
         while len(self.currentEvents) > 0:
             self.pastEvents.append(self.currentEvents.pop())
@@ -278,34 +244,82 @@ class Context(Entity):
                 random.shuffle(self.pastEvents, self.shuffleStream.random)
                 while len(self.pastEvents) > 0:
                     self.futureEvents.append(self.pastEvents.pop())
+            self.trigger('reveal', self, event)
+
+    def resolveDisturbances(self):
+        for event in [e for e in self.currentEvents if e.isDisturbance()]:
             # resolve disturbances
-            if event.isDisturbance():
-                for federate in [federate for federation in self.federations
-                                 for federate in federation.federates]:
-                    rollStream = self.rollStreams[federate.name]
-                    for element in federate.elements:
-                        if (element.isSpace()
-                            and element.location is not None
-                            and element.location.sector == event.sector):
-                                if any(module.isDefense() for module in element.modules):
-                                    logging.info('{0} is protected from {1}'
-                                                .format(element.name, event.name))
-                                else:
-                                    numHits = 0
-                                    modules = element.modules[:]
-                                    random.shuffle(modules, random=rollStream.random)
-                                    for module in modules:
-                                        if (numHits < event.maxHits
-                                            and rollStream.random() < event.hitChance):
-                                            element.modules.remove(module)
-                                            numHits += 1
-                                            logging.info('{0} was hit and lost {1}'
-                                                        .format(element.name, module.name))
-                                        else:
-                                            
-                                            logging.debug('{0} was not hit'
-                                                        .format(element.name))
-        self.time = self._nextTime
+            for federate in [federate for federation in self.federations
+                             for federate in federation.federates]:
+                rollStream = self.rollStreams[federate.name]
+                for element in federate.elements:
+                    if (element.isSpace()
+                        and element.location is not None
+                        and element.location.sector == event.sector):
+                            if any(module.isDefense() for module in element.modules):
+                                logging.info('{0} is protected from {1}'
+                                            .format(element.name, event.name))
+                            else:
+                                numHits = 0
+                                modules = element.modules[:]
+                                random.shuffle(modules, random=rollStream.random)
+                                for module in modules:
+                                    if (numHits < event.maxHits
+                                        and rollStream.random() < event.hitChance):
+                                        element.modules.remove(module)
+                                        numHits += 1
+                                        logging.info('{0} was hit and lost {1}'
+                                                    .format(element.name, module.name))
+                                        self.trigger('hit', self, element, module)
+                                    else:
+                                        
+                                        logging.debug('{0} was not hit'
+                                                    .format(element.name))
+            self.trigger('resolve', self, event)
+    
+    def logState(self):
+        """
+        Logs the spatial state for debugging purposes.
+        """
+        for location in self.locations:
+            if any(element for federation in self.federations
+                   for federate in federation.federates
+                   for element in federate.elements
+                   if element.location is location):
+             logging.debug('{0}'.format(location.name))
+             for element in [element for federation in self.federations
+                             for federate in federation.federates
+                             for element in federate.elements
+                             if element.location is location]:
+                 logging.debug('-{0}'.format(element.name))
+                 for module in element.modules:
+                    if len(module.data) > 0:
+                        logging.debug(' -{0}'.format(module.name))
+                        for d in module.data:
+                            logging.debug('  -{0} {1}'.format(d.phenomenon,
+                                                              d.contract))
+    
+    def autoDefault(self):
+        """
+        Automatically defaults any invalid contracts
+        and liquidates bankrupt federates.
+        """
+        for federate in [federate for federation in self.federations
+                         for federate in federation.federates]:
+            # default any failed contracts
+            for contract in federate.contracts[:]:
+                if contract.isDefaulted(self.getDataLocation(contract)):
+                    logging.warning('Auto-defaulting {0} for {1}'
+                                .format(contract.name, federate.name))
+                    federate.resolve(contract, self)
+            # liquidate bankrupt federates
+            if federate.cash < 0:
+                federate.liquidate(self)
+    
+    def executeOperations(self):
+        """
+        Executes operational models.
+        """
         logging.info('Commence operations for time {0}'.format(self.time))
         federates = [federate for federation in self.federations
                          for federate in federation.federates]
@@ -322,3 +336,19 @@ class Context(Entity):
                          for federate in federation.federates]:
             logging.info('{0} has {1} cash at time {2}'
                         .format(federate.name, federate.cash, self.time))
+    
+    def tock(self):
+        """
+        Tocks this context in a simulation.
+        """
+        super(Context, self).tock()
+        for federation in self.federations:
+            federation.tock()
+        
+        self.autoDefault()
+        self.time = self._nextTime
+        self.trigger('advance', self, self.time)
+        self.logState()
+        self.revealEvents()
+        self.resolveDisturbances()
+        self.executeOperations()
