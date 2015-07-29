@@ -63,6 +63,13 @@ class Context(Entity):
         self.time = 0
         self._nextTime = 0
     
+    def getNumSectors(self):
+        """
+        Gets the number of sectors in this context.
+        @return: L{int}
+        """
+        return len(self.sectors)
+    
     def propagate(self, location, duration):
         """
         Propagates a location over a specified duration.
