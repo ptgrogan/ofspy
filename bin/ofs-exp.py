@@ -555,7 +555,7 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--fops', type=str, default='',
                         help='federation operations model specification')
     parser.add_argument('-l', '--logging', type=str, default='error',
-                        choices=['debug','info','warning','error'],
+                        choices=['debug','info','warning','warning'],
                         help='logging level')
     parser.add_argument('-s', '--start', type=int, default=0,
                         help='starting random number seed')
