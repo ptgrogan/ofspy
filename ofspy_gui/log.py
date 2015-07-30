@@ -18,18 +18,67 @@ from Tkinter import *
 
 from ofspy.ofs import OFS
 from ofspy.context import Context
+from ofspy.federation import Federation
+from ofspy.federate import Federate
+from ofspy.element import Element
+from ofspy.module import Module
 
-class LogOFS(Text):
+class LogOFS(LabelFrame):
     def __init__(self, root, ofs):
-        Text.__init__(self, root, width=50, bg="black",
-                      fg='white', highlightthickness=0, wrap=WORD)
+        LabelFrame.__init__(self, root, bg="black", fg='white',
+                            highlightthickness=0, borderwidth=0)
         self.colors = ['red', 'blue', 'green', 'orange', 'purple', 'yellow']
-        self.handleContext(ofs.context)
+        self.text = Text(self, width=50, bg="black", fg='white',
+                         highlightthickness=0, wrap=WORD)
+        self.options = LabelFrame(self, bg="black", fg='white', borderwidth=0)
+        self.showContext = BooleanVar()
+        self.showContext.set(1)
+        self.showFederation = BooleanVar()
+        self.showFederation.set(1)
+        self.showFederate = BooleanVar()
+        self.showFederate.set(1)
+        self.showElement = BooleanVar()
+        self.showElement.set(1)
+        self.showModule = BooleanVar()
+        self.showModule.set(0)
+        Checkbutton(self.options, text='Context',
+                    bg="black", fg='white', selectcolor='black',
+                    highlightbackground='black', highlightcolor='white',
+                    activebackground='black', activeforeground='white',
+                    variable=self.showContext,
+                    highlightthickness=0).pack(side=LEFT, padx=5)
+        Checkbutton(self.options, text='Federation',
+                    bg="black", fg='white', selectcolor='black',
+                    highlightbackground='black', highlightcolor='white',
+                    activebackground='black', activeforeground='white',
+                    variable=self.showFederation,
+                    highlightthickness=0).pack(side=LEFT, padx=5)
+        Checkbutton(self.options, text='Federate',
+                    bg="black", fg='white', selectcolor='black',
+                    highlightbackground='black', highlightcolor='white',
+                    activebackground='black', activeforeground='white',
+                    variable=self.showFederate,
+                    highlightthickness=0).pack(side=LEFT, padx=5)
+        Checkbutton(self.options, text='Element',
+                    bg="black", fg='white', selectcolor='black',
+                    highlightbackground='black', highlightcolor='white',
+                    activebackground='black', activeforeground='white',
+                    variable=self.showElement,
+                    highlightthickness=0).pack(side=LEFT, padx=5)
+        Checkbutton(self.options, text='Module',
+                    bg="black", fg='white', selectcolor='black',
+                    highlightbackground='black', highlightcolor='white',
+                    activebackground='black', activeforeground='white',
+                    variable=self.showModule,
+                    highlightthickness=0).pack(side=LEFT, padx=5)
+        self.options.pack(side=TOP)
+        self.text.pack(side=BOTTOM, fill=BOTH, expand=1)
+        self.text.config(state=DISABLED)
         
-        self.config(state=DISABLED)
+        self.handleContext(ofs.context)
             
     def handleContext(self, context):
-        self.tag_configure(context.name, foreground='pink')
+        self.text.tag_configure(context.name, foreground='pink')
         context.on('init advance', self.contextAdvance)
         context.on('reveal', self.contextReveal)
         context.on('resolve', self.contextResolve)
@@ -39,7 +88,7 @@ class LogOFS(Text):
                                               - (i % len(self.colors))])
     
     def handleFederation(self, federation, color):
-        self.tag_configure(federation.name, foreground=color)
+        self.text.tag_configure(federation.name, foreground=color)
         federation.on('join', self.federationJoin)
         federation.on('quit', self.federationQuit)
         federation.on('exchange', self.federationExchange)
@@ -51,7 +100,7 @@ class LogOFS(Text):
             self.handleFederate(federate, self.colors[i % len(self.colors)])
             
     def handleFederate(self, federate, color):
-        self.tag_configure(federate.name, foreground=color)
+        self.text.tag_configure(federate.name, foreground=color)
         federate.on('design', self.federateDesign)
         federate.on('commission', self.federateCommission)
         federate.on('decommission', self.federateDecommission)
@@ -63,18 +112,17 @@ class LogOFS(Text):
             self.handleElement(element, color)
             
     def handleElement(self, element, color):
-        self.tag_configure(element.name, foreground=color)
+        self.text.tag_configure(element.name, foreground=color)
         element.on('store', self.elementStore)
         element.on('sense', self.elementSense)
         element.on('transfer', self.elementTransfer)
         element.on('transmit', self.elementTransmit)
         element.on('receive', self.elementReceive)
         for module in element.modules:
-            pass
-            # self.handleModule(module, color)
+            self.handleModule(module, color)
             
     def handleModule(self, module, color):
-        self.tag_configure(module.name, foreground=color)
+        self.text.tag_configure(module.name, foreground=color)
         module.on('store', self.moduleStore)
         module.on('sense', self.moduleSense)
         module.on('transferOut', self.moduleTransferOut)
@@ -84,17 +132,22 @@ class LogOFS(Text):
         module.on('receive', self.moduleReceive)
     
     def append(self, source, message):
-        self.config(state=NORMAL)
-        self.insert(END, source.name, (source.name,))
-        self.insert(END, ' {}'.format(message))
-        self.config(state=DISABLED)
+        if ((isinstance(source, Context) and self.showContext.get())
+             or (isinstance(source, Federation) and self.showFederation.get())
+             or (isinstance(source, Federate) and self.showFederate.get())
+             or (isinstance(source, Element) and self.showElement.get())
+             or (isinstance(source, Module) and self.showModule.get())):
+            self.text.config(state=NORMAL)
+            self.text.insert(END, source.name, (source.name,))
+            self.text.insert(END, ' {}'.format(message))
+            self.text.config(state=DISABLED)
         
     def clear(self):
-        self.config(state=NORMAL)
-        self.delete('1.0',END)
+        self.text.config(state=NORMAL)
+        self.text.delete('1.0',END)
         #for tag in self.tag_names():        
         #    self.tag_delete(tag)
-        self.config(state=DISABLED)
+        self.text.config(state=DISABLED)
     
     def contextAdvance(self, context, time):
         self.clear()
@@ -107,7 +160,7 @@ class LogOFS(Text):
             disturbance.name, disturbance.sector+1))
     def federationJoin(self, federation, federate):
         self.append(federation, 'joined {}\n'.format(federate.name))
-        self.handleFederate(federate, 'white') #FIXME temporary color
+        self.text.handleFederate(federate, 'white') #FIXME temporary color
     def federationQuit(self, federation, federate):
         self.append(federation, 'quit {}\n'.format(federate.name))
     def federationExchange(self, federation, amount, debtor, creditor):
@@ -119,7 +172,7 @@ class LogOFS(Text):
     def federateCommission(self, federate, element, location, cost):
         self.append(federate, 'commissioned {} at {} for {:.0f} cash\n'.format(
             element.name, location.name, cost))
-        self.handleElement(element, self.tag_cget(federate.name, 'foreground'))
+        self.handleElement(element, self.text.tag_cget(federate.name, 'foreground'))
     def federateDecommission(self, federate, element):
         self.append(federate, 'decommissioned {}\n'.format(element.name))
     def controllerContract(self, controller, demand):
