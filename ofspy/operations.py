@@ -58,7 +58,7 @@ class Operations(object):
                                e + v*(math.pow(sum(counts[0:values.index(v)+1]), 1)
                                       - math.pow(sum(counts[0:values.index(v)]), 1))
                                / math.pow(sum(counts),1), values)
-            self.penaltyMemo[element] = -100*max(1, expValMax) # minimum penalty 100
+            self.penaltyMemo[element] = -1*max(100, expValMax) # minimum penalty 100
         return self.penaltyMemo[element]
 
 class DynamicOperations(Operations):
