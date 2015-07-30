@@ -1056,13 +1056,13 @@ class FixedCostDynamicOperations(DynamicOperations):
                             for k, protocol in enumerate(protocolsSGL):
                                 if station not in ownStations:
                                     r.add(T_c[0][i][j][k][l],
-                                          -1*self.costSGL*demand.size)
+                                          -1*self.costSGL*contract.demand.size)
                     for i, txSatellite in enumerate(allSatellitesISL):
                         for j, rxSatellite in enumerate(allSatellitesISL):
                             for k, protocol in enumerate(protocolsISL):
                                 if rxSatellite not in ownSatellites:
                                     r.add(L_c[0][i][j][k][l],
-                                          -1*self.costISL*demand.size)
+                                          -1*self.costISL*contract.demand.size)
                 lp.addConstraint(r, 'GE', -1 - federate.cash,
                                  '{} net cash must be positive'
                                  .format(federate.name))
