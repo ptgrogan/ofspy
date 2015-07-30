@@ -23,14 +23,13 @@ from ofspy.federate import Federate
 from ofspy.element import Element
 from ofspy.module import Module
 
-class LogOFS(LabelFrame):
+class LogOFS(Frame):
     def __init__(self, root, ofs):
-        LabelFrame.__init__(self, root, bg="black", fg='white',
-                            highlightthickness=0, borderwidth=0)
+        Frame.__init__(self, root, bg="black", borderwidth=0)
         self.colors = ['red', 'blue', 'green', 'orange', 'purple', 'yellow']
         self.text = Text(self, width=50, bg="black", fg='white',
                          highlightthickness=0, wrap=WORD)
-        self.options = LabelFrame(self, bg="black", fg='white', borderwidth=0)
+        self.options = Frame(self, bg="black", borderwidth=0)
         self.showContext = BooleanVar()
         self.showContext.set(1)
         self.showFederation = BooleanVar()
