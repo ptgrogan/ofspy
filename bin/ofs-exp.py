@@ -387,7 +387,7 @@ def executeMASV(dbHost, dbPort, start, stop):
     @type stop: L{int}
     """
     execute(dbHost, dbPort, 'masv', start, stop,
-            enumMASV(), 2, 0, 24, 'd6,a,1', 'x100,50,6,a,1')
+            enumMASV(), 2, 0, 24, 'n', 'd6,a,1')
 
 def executeMASV2(dbHost, dbPort, start, stop):
     """
@@ -402,7 +402,7 @@ def executeMASV2(dbHost, dbPort, start, stop):
     @type stop: L{int}
     """
     execute(dbHost, dbPort, 'masv2', start, stop,
-            enumMASV(), 2, 0, 24, 'n', 'd6,a,1')
+            enumMASV(), 2, 0, 24, 'd6,a,1', 'x100,50,6,a,1')
 
 def enumBVC():
     """
