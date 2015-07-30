@@ -402,18 +402,18 @@ def postProcessMASV(db):
             p1Cost, p1ExpValue, p1ValueStdErr,
             pisl, oisl, osgl)
 
-def postProcessBVC(db):
+def postProcessBVC(db, suffix=''):
     """
     Performs post-processing for the bounding value of collaboration experiment.
     @param db: the database
     @type db: L{Database}
     """
-    mapReduce(db, 'bvc')
+    mapReduce(db, 'bvc{}'.format(suffix))
     (id, elements, p1Cost, p2Cost, totCost,
      p1ValueStdErr, p2ValueStdErr, totValueStdErr, 
      p1ValueAvg, p2ValueAvg, totValueAvg,
      p1ExpValue, p2ExpValue, totExpValue, 
-     pisl, oisl, osgl, independent) = processData(db, 'bvc')
+     pisl, oisl, osgl, independent) = processData(db, 'bvc{}'.format(suffix))
     
     plt.rcParams.update({'axes.labelsize':8,
                          'font.size':8, 
@@ -422,7 +422,7 @@ def postProcessBVC(db):
                          'xtick.labelsize':8,
                          'ytick.labelsize':8})
     if np.size(id[independent] > 0):
-        tradespaceIndependent('bvc-i', id[independent], 
+        tradespaceIndependent('bvc{}-i'.format(suffix), id[independent], 
             totCost[independent]/2, 
             totExpValue[independent]/2,
             totValueStdErr[independent]/2, 
@@ -430,7 +430,7 @@ def postProcessBVC(db):
             oisl[independent], 
             osgl[independent])
     if np.size(id) > 0:
-        tradespaceCentralized('bvc-c', id, 
+        tradespaceCentralized('bvc{}-c'.format(suffix), id, 
             totCost/2, totExpValue/2, totValueStdErr/2,
             pisl, oisl, osgl)
     
@@ -493,7 +493,7 @@ def postProcessBVC(db):
     plt.legend(['Independent Pareto Frontier ($V_i$)','Centralized Pareto Frontier, FSS Success ($V_c$)','Centralized Pareto Frontier, FSS Failure  ($V_x$)'],loc='upper left')
     plt.grid()
     plt.gcf().set_size_inches(6.5, 3.5)
-    plt.savefig('ts-bvc.png', bbox_inches='tight', dpi=300)
+    plt.savefig('ts-bvc{}.png'.format(suffix), bbox_inches='tight', dpi=300)
     
     initialCost = 2000
     
@@ -661,6 +661,8 @@ if __name__ == '__main__':
         postProcessMASV(db)
     elif args.experiment == 'bvc':
         postProcessBVC(db)
+    elif args.experiment == 'bvc2':
+        postProcessBVC(db, '2')
     elif args.experiment == 'ga':
         postProcessGA(db, args.maxCost)
     else:
