@@ -467,12 +467,14 @@ class DynamicOperations(Operations):
                 with open('lp_debug.txt', 'w+') as f:
                     f.write(lp.dumpProgram())
             else:
+                """ debug code
                 with open('lp_solution_{}_{}.txt'.format(
                     controller.name, context.time), 'w+') as f:
                     f.write(lp.dumpSolution())
                 with open('lp_program_{}_{}.txt'.format(
                     controller.name, context.time), 'w+') as f:
                     f.write(lp.dumpProgram())
+                """
                 def _transportContract(operations, satellite, contract, context):
                     i = satellites.index(satellite)
                     R_i = elements.index(satellite)
