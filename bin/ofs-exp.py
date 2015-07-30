@@ -424,6 +424,21 @@ def executeBVC(dbHost, dbPort, start, stop):
     execute(dbHost, dbPort, 'bvc', start, stop,
             enumBVC(), 2, 0, 24, 'n', 'd6,a,1')
 
+def executeBVC2(dbHost, dbPort, start, stop):
+    """
+    Executes the bounding value of collaboration 2 experiment.
+    @param dbHost: the database host
+    @type dbHost: L{str}
+    @param dbPort: the database port
+    @type dbPort: L{int}
+    @param start: the starting seed
+    @type start: L{int}
+    @param stop: the stopping seed
+    @type stop: L{int}
+    """
+    execute(dbHost, dbPort, 'bvc2', start, stop,
+            enumBVC(), 2, 0, 24, 'd6,a,1', 'x100,50,6,a,1')
+
 def execute(dbHost, dbPort, dbName, start, stop, cases, numPlayers,
             initialCash, numTurns, ops, fops):
     """
@@ -581,6 +596,8 @@ if __name__ == '__main__':
         executeMASV(args.dbHost, args.dbPort, args.start, args.stop)
     elif len(args.experiment) == 1 and args.experiment[0] == 'bvc':
         executeBVC(args.dbHost, args.dbPort, args.start, args.stop)
+    elif len(args.experiment) == 1 and args.experiment[0] == 'bvc2':
+        executeBVC2(args.dbHost, args.dbPort, args.start, args.stop)
     else:
         execute(args.dbHost, args.dbPort, None, args.start, args.stop,
                 [' '.join(args.experiment)],
