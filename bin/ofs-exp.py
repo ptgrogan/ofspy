@@ -387,7 +387,22 @@ def executeMASV(dbHost, dbPort, start, stop):
     @type stop: L{int}
     """
     execute(dbHost, dbPort, 'masv', start, stop,
-            enumMASV(), 2, 0, 24, 'd6,a,1', 'x50,25,6,a,1')
+            enumMASV(), 2, 0, 24, 'd6,a,1', 'x100,50,6,a,1')
+
+def executeMASV2(dbHost, dbPort, start, stop):
+    """
+    Executes the multi-actor system value 2 experiment.
+    @param dbHost: the database host
+    @type dbHost: L{str}
+    @param dbPort: the database port
+    @type dbPort: L{int}
+    @param start: the starting seed
+    @type start: L{int}
+    @param stop: the stopping seed
+    @type stop: L{int}
+    """
+    execute(dbHost, dbPort, 'masv2', start, stop,
+            enumMASV(), 2, 0, 24, 'n', 'd6,a,1')
 
 def enumBVC():
     """
@@ -594,6 +609,8 @@ if __name__ == '__main__':
     
     if len(args.experiment) == 1 and args.experiment[0] == 'masv':
         executeMASV(args.dbHost, args.dbPort, args.start, args.stop)
+    elif len(args.experiment) == 1 and args.experiment[0] == 'masv2':
+        executeMASV2(args.dbHost, args.dbPort, args.start, args.stop)
     elif len(args.experiment) == 1 and args.experiment[0] == 'bvc':
         executeBVC(args.dbHost, args.dbPort, args.start, args.stop)
     elif len(args.experiment) == 1 and args.experiment[0] == 'bvc2':

@@ -370,13 +370,15 @@ def tradespaceCentralized(label, id, cost, expValue,
     plt.gcf().set_size_inches(6.5, 3.5)
     plt.savefig('ts-'+label+'.png', bbox_inches='tight', dpi=300)
 
-def postProcessMASV(db):
+def postProcessMASV(db, suffix=''):
     """
     Performs post-processing for the multi-actor system value experiment.
     @param db: the database
     @type db: L{Database}
+    @param suffix: the experiment suffix
+    @type suffix: L{str}
     """
-    mapReduce(db, 'masv')
+    mapReduce(db, 'masv{}'.format(suffix))
     (id, elements, p1Cost, p2Cost, totCost,
      p1ValueStdErr, p2ValueStdErr, totValueStdErr, 
      p1ValueAvg, p2ValueAvg, totValueAvg,
@@ -390,7 +392,7 @@ def postProcessMASV(db):
                          'xtick.labelsize':8,
                          'ytick.labelsize':8})
     if np.size(id[independent] > 0):
-        tradespaceIndependent('masv-i', id[independent], 
+        tradespaceIndependent('masv-i{}'.format(suffix), id[independent], 
             p1Cost[independent], 
             p1ExpValue[independent],
             p1ValueStdErr[independent], 
@@ -398,7 +400,7 @@ def postProcessMASV(db):
             oisl[independent], 
             osgl[independent])
     if np.size(id) > 0:
-        tradespaceCentralized('masv-c', id, 
+        tradespaceCentralized('masv-c{}'.format(suffix), id, 
             p1Cost, p1ExpValue, p1ValueStdErr,
             pisl, oisl, osgl)
 
@@ -407,6 +409,8 @@ def postProcessBVC(db, suffix=''):
     Performs post-processing for the bounding value of collaboration experiment.
     @param db: the database
     @type db: L{Database}
+    @param suffix: the experiment suffix
+    @type suffix: L{str}
     """
     mapReduce(db, 'bvc{}'.format(suffix))
     (id, elements, p1Cost, p2Cost, totCost,
@@ -422,7 +426,7 @@ def postProcessBVC(db, suffix=''):
                          'xtick.labelsize':8,
                          'ytick.labelsize':8})
     if np.size(id[independent] > 0):
-        tradespaceIndependent('bvc{}-i'.format(suffix), id[independent], 
+        tradespaceIndependent('bvc-i{}'.format(suffix), id[independent], 
             totCost[independent]/2, 
             totExpValue[independent]/2,
             totValueStdErr[independent]/2, 
@@ -430,7 +434,7 @@ def postProcessBVC(db, suffix=''):
             oisl[independent], 
             osgl[independent])
     if np.size(id) > 0:
-        tradespaceCentralized('bvc{}-c'.format(suffix), id, 
+        tradespaceCentralized('bvc-c{}'.format(suffix), id, 
             totCost/2, totExpValue/2, totValueStdErr/2,
             pisl, oisl, osgl)
     
@@ -659,6 +663,8 @@ if __name__ == '__main__':
     
     if args.experiment == 'masv':
         postProcessMASV(db)
+    elif args.experiment == 'masv2':
+        postProcessMASV(db, '2')
     elif args.experiment == 'bvc':
         postProcessBVC(db)
     elif args.experiment == 'bvc2':
