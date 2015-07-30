@@ -58,7 +58,7 @@ class Operations(object):
                                e + v*(math.pow(sum(counts[0:values.index(v)+1]), 1)
                                       - math.pow(sum(counts[0:values.index(v)]), 1))
                                / math.pow(sum(counts),1), values)
-            self.penaltyMemo[element] = -1*max(1, expValMax) # minimum penalty 1
+            self.penaltyMemo[element] = -100*max(1, expValMax) # minimum penalty 100
         return self.penaltyMemo[element]
 
 class DynamicOperations(Operations):
@@ -467,14 +467,12 @@ class DynamicOperations(Operations):
                 with open('lp_debug.txt', 'w+') as f:
                     f.write(lp.dumpProgram())
             else:
-                """ debug code
                 with open('lp_solution_{}_{}.txt'.format(
                     controller.name, context.time), 'w+') as f:
                     f.write(lp.dumpSolution())
                 with open('lp_program_{}_{}.txt'.format(
                     controller.name, context.time), 'w+') as f:
                     f.write(lp.dumpProgram())
-                """
                 def _transportContract(operations, satellite, contract, context):
                     i = satellites.index(satellite)
                     R_i = elements.index(satellite)
