@@ -227,8 +227,8 @@ class DynamicOperations(Operations):
                                     '{}-T({}/{})-{}@{}'.format(
                                         satellite.name, contract.name,
                                         protocol, station.name, time), True))
-                                r.add(T_c[t][i][j][k][l], demand.size)
-                                maxSize = max(maxSize, demand.size
+                                r.add(T_c[t][i][j][k][l], contract.demand.size)
+                                maxSize = max(maxSize, contract.demand.size
                                               if controller.couldTransport(
                                                 protocol, contract.demand.generateData(),
                                                 satellite, station,
@@ -305,8 +305,8 @@ class DynamicOperations(Operations):
                                         protocol, rxSatellite.name, time), True))
                                 # small penalty for opportunity cost
                                 J.add(L_c[t][i][j][k][l], self.islPenalty*contract.demand.size)
-                                r.add(L_c[t][i][j][k][l], demand.size)
-                                maxSize = max(maxSize, demand.size
+                                r.add(L_c[t][i][j][k][l], contract.demand.size)
+                                maxSize = max(maxSize, contract.demand.size
                                               if controller.couldTransport(
                                                 protocol, contract.demand.generateData(),
                                                 txSatellite, rxSatellite,
@@ -777,8 +777,8 @@ class FixedCostDynamicOperations(DynamicOperations):
                                     if station not in ownStations:
                                         J.add(T_c[t][i][j][k][l],
                                               -1*self.costSGL*contract.demand.size)
-                                    r.add(T_c[t][i][j][k][l], demand.size)
-                                    maxSize = max(maxSize, demand.size
+                                    r.add(T_c[t][i][j][k][l], contract.demand.size)
+                                    maxSize = max(maxSize, contract.demand.size
                                                   if controller.couldTransport(
                                                     protocol, contract.demand.generateData(),
                                                     satellite, station,
@@ -874,8 +874,8 @@ class FixedCostDynamicOperations(DynamicOperations):
                                         # small penalty for opportunity cost
                                         J.add(L_c[t][i][j][k][l],
                                               self.islPenalty*contract.demand.size)
-                                    r.add(L_c[t][i][j][k][l], demand.size)
-                                    maxSize = max(maxSize, demand.size
+                                    r.add(L_c[t][i][j][k][l], contract.demand.size)
+                                    maxSize = max(maxSize, contract.demand.size
                                                   if controller.couldTransport(
                                                     protocol, contract.demand.generateData(),
                                                     txSatellite, rxSatellite,
