@@ -156,24 +156,6 @@ def enum1x1Sats(player, sector, sgl, isl):
     out.sort(sortBySize)
     return out
 
-def enumBest1x1Sats(player, sector, sgl, isl):
-    """
-    Enumerates best 1-player, 1-satellite definitions.
-    @param player: the player to design the satellite
-    @type player: L{int}
-    @param sector: the sector in which to commission the satellite
-    @type sector: L{int}
-    @param sgl: the SGL protocol used by the satellite
-    @type sgl: L{str}
-    @param isl: the ISL protocol used by the satellite
-    @type isl: L{str}
-    @return: L{str}
-    """
-    return [
-        '{}.SmallSat@MEO{},SAR,{}'.format(player, sector, sgl),
-        '{}.SmallSat@MEO{},VIS,{}'.format(player, sector, sgl)
-    ]
-
 def enum1xNSats(number, player, sector, sgl, isl):
     """
     Enumerates all 1-player, N-satellite definitions.
@@ -189,7 +171,7 @@ def enum1xNSats(number, player, sector, sgl, isl):
     @type isl: L{str}
     @return: L{str}
     """
-    satsSGL = [enumBest1x1Sats(player, (sector-1+(6-i))%6+1, sgl, isl)
+    satsSGL = [enum1x1Sats(player, (sector-1+(6-i))%6+1, sgl, isl)
                for i in range(number)]
     satsISL = [enum1x1Sats(player, (sector-1+(6-i))%6+1, sgl, isl)
                for i in range(number)]
