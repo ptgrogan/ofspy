@@ -383,7 +383,7 @@ def postProcessMASV(db, suffix=''):
      p1ValueStdErr, p2ValueStdErr, totValueStdErr, 
      p1ValueAvg, p2ValueAvg, totValueAvg,
      p1ExpValue, p2ExpValue, totExpValue, 
-     pisl, oisl, osgl, independent) = processData(db, 'masv')
+     pisl, oisl, osgl, independent) = processData(db, 'masv{}'.format(suffix))
     
     plt.rcParams.update({'axes.labelsize':8,
                          'font.size':8, 
