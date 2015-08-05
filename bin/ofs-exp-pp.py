@@ -669,6 +669,8 @@ if __name__ == '__main__':
         postProcessBVC(db)
     elif args.experiment == 'bvc2':
         postProcessBVC(db, '2')
+    elif args.experiment == 'bvc3':
+        postProcessBVC(db, '3')
     elif args.experiment == 'ga':
         postProcessGA(db, args.maxCost)
     else:
