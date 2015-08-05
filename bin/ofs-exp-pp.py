@@ -145,7 +145,7 @@ def processData(db, dbName, query=None):
                          'p2Cost', 'p2Avg', 'p2ExpVal',
                          'p2Min', 'p2Max', 'p2StdErr'])
         for doc in db['{}_pp'.format(dbName)].find(query).sort(
-            u'_id.totCost', pymongo.ASCENDING):
+            [[u'_id.totCost', pymongo.ASCENDING], [u'_id.elements', pymongo.ASCENDING]]):
             counter += 1
             writer.writerow([counter, doc[u'_id'][u'elements'].encode('ascii','ignore').replace(',','|'),
                              doc[u'_id'][u'ops'].encode('ascii','ignore').replace(',','|'),
