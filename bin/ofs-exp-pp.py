@@ -275,7 +275,7 @@ def plotTradespaceStep3(c, id, cost, expValue, P_id):
 
 def tradespaceIndependent(label, id, cost, expValue,
                           stdErr, pisl, oisl, osgl,
-                          xlim=[1000, 4000], ylim=[-2000, 10000]):
+                          xlim=[1000, 4000], ylim=[-1000, 10000]):
     """
     Creates a tradespace plot for independent designs.
     @param label: the plot label
@@ -308,7 +308,9 @@ def tradespaceIndependent(label, id, cost, expValue,
     for i, f in enumerate(filters):
         plotTradespaceStep3(colors[i], id[f], cost[f], expValue[f], P_id)
         
-    plt.plot(P_cost, P_value, ls='steps-post--', color=[.3,.3,.3])
+    plt.plot(np.append(P_cost,np.max(cost)),
+             np.append(P_value,np.max(P_value)),
+             ls='steps-post--', color=[.3,.3,.3])
         
     plt.xlabel('Initial Cost ($\S$)')
     plt.ylabel('24-turn Expected Net Value ($\S$)')
@@ -321,7 +323,7 @@ def tradespaceIndependent(label, id, cost, expValue,
         
 def tradespaceCentralized(label, id, cost, expValue,
                           stdErr, pisl, oisl, osgl,
-                          xlim=[1000, 4000], ylim=[-2000, 10000]):
+                          xlim=[1000, 4000], ylim=[-1000, 10000]):
     """
     Creates a tradespace plot for centralized designs.
     @param label: the plot label
@@ -358,7 +360,9 @@ def tradespaceCentralized(label, id, cost, expValue,
     for i, f in enumerate(filters):
         plotTradespaceStep3(colors[i], id[f], cost[f], expValue[f], P_id)
         
-    plt.plot(P_cost, P_value, ls='steps-post--', color=[.3,.3,.3])
+    plt.plot(np.append(P_cost,np.max(cost)),
+             np.append(P_value,np.max(P_value)),
+             ls='steps-post--', color=[.3,.3,.3])
         
     plt.xlabel('Initial Cost ($\S$)')
     plt.ylabel('24-turn Expected Net Value ($\S$)')
@@ -432,35 +436,61 @@ def postProcessBVC(db, suffix=''):
             totValueStdErr[independent]/2, 
             pisl[independent], 
             oisl[independent], 
-            osgl[independent])
+            osgl[independent],
+            ylim=[-500, 4000])
     if np.size(id) > 0:
         tradespaceCentralized('bvc-c{}'.format(suffix), id, 
             totCost/2, totExpValue/2, totValueStdErr/2,
-            pisl, oisl, osgl)
+            pisl, oisl, osgl,
+            ylim=[-500, 4000] if suffix == '3' else [-500, 10000])
+
+def postPostProcessBVC(db):
+    (id_1, elements_1, p1Cost_1, p2Cost_1, totCost_1,
+     p1ValueStdErr_1, p2ValueStdErr_1, totValueStdErr_1, 
+     p1ValueAvg_1, p2ValueAvg_1, totValueAvg_1,
+     p1ExpValue_1, p2ExpValue_1, totExpValue_1, 
+     pisl_1, oisl_1, osgl_1, independent_1) = processData(db, 'bvc')
+    (id_2, elements_2, p1Cost_2, p2Cost_2, totCost_2,
+     p1ValueStdErr_2, p2ValueStdErr_2, totValueStdErr_2, 
+     p1ValueAvg_2, p2ValueAvg_2, totValueAvg_2,
+     p1ExpValue_2, p2ExpValue_2, totExpValue_2, 
+     pisl_2, oisl_2, osgl_2, independent_2) = processData(db, 'bvc2')
+    (id_3, elements_3, p1Cost_3, p2Cost_3, totCost_3,
+     p1ValueStdErr_3, p2ValueStdErr_3, totValueStdErr_3, 
+     p1ValueAvg_3, p2ValueAvg_3, totValueAvg_3,
+     p1ExpValue_3, p2ExpValue_3, totExpValue_3, 
+     pisl_3, oisl_3, osgl_3, independent_3) = processData(db, 'bvc3')
     
-    i_id, i_cost, i_value = pareto(id[independent], 
-            totCost[independent]/2, 
-            totExpValue[independent]/2)
-    c_id, c_cost, c_value = pareto(id, totCost/2, totExpValue/2)
-            
+    plt.rcParams.update({'axes.labelsize':8,
+                         'font.size':8, 
+                         'font.family':'Times New Roman',
+                         'legend.fontsize':8, 
+                         'xtick.labelsize':8,
+                         'ytick.labelsize':8})
+    
+    for p in range(5,100,5):
+        tradespaceCentralized('bvc-uc{}'.format(p), id_1, 
+            (totCost_1*float(p)/100 + totCost_3*(1-float(p)/100))/2,
+            (totExpValue_1*float(p)/100 + totExpValue_3*(1-float(p)/100))/2,
+            (totValueStdErr_1*float(p)/100 + totValueStdErr_3*(1-float(p)/100))/2,
+            pisl_1, oisl_1, osgl_1,
+            ylim=[-500, 10000])
+        tradespaceCentralized('bvc-uf{}'.format(p), id_2, 
+            (totCost_2*float(p)/100 + totCost_3*(1-float(p)/100))/2,
+            (totExpValue_2*float(p)/100 + totExpValue_3*(1-float(p)/100))/2,
+            (totValueStdErr_2*float(p)/100 + totValueStdErr_3*(1-float(p)/100))/2,
+            pisl_2, oisl_2, osgl_2,
+            ylim=[-500, 10000])
+
+    i_id, i_cost, i_value = pareto(id_3, totCost_3/2, totExpValue_3/2)
+    f_id, f_cost, f_value = pareto(id_2, totCost_2/2, totExpValue_2/2)
+    c_id, c_cost, c_value = pareto(id_1, totCost_1/2, totExpValue_1/2)
+    
     x_value = np.array([])
     for i in c_id:
-        m = re.search('^((1\.[^\s]*\s*)+) (?:(2\.[^\s]*\s*)+) '
-                      + '(?:(1\.[^\s]*\s*)*) (?:(2\.[^\s]*\s*)*)$',
-                      elements[id==i].tostring())
-        if m:
-            query = m.group(1).replace('oSGL','pSGL').replace('oISL','pISL')
-            for element in elements[independent]:
-                n = re.search('^((1\.[^\s]*\s*)+) (?:(2\.[^\s]*\s*)+) '
-                              + '(?:(1\.[^\s]*\s*)*) (?:(2\.[^\s]*\s*)*)$',
-                              element)
-                if n and query == n.group(1):
-                    # correct value for differences in initial costs
-                    x_value = np.append(x_value, totExpValue[elements==element]/2
-                                        + p1Cost[elements==element] - c_cost[i==c_id])
+        x_value = np.append(x_value, totExpValue_3[id_3==i]/2)
     
-    x = np.linspace(max(np.amin(i_cost), np.amin(c_cost)), 
-            max(np.amax(i_cost), np.amax(c_cost)),100)
+    x = np.linspace(np.min(totCost_1/2), np.max(totCost_1/2),1000)
     v_ub = np.array([])
     v_i = np.array([])
     v_lb = np.array([])
@@ -480,29 +510,100 @@ def postProcessBVC(db, suffix=''):
                      edgecolor=[.3,.3,.3,.5], linewidth=0.0)
     plt.fill_between(x, v_i, v_lb, color='none', hatch='\\',
                      edgecolor=[1,.3,.3,.5], linewidth=0.0)
-    plt.plot(i_cost, i_value, ls='steps-post-', color='k')
-    plt.plot(c_cost, c_value, ls='steps-post--', color='k')
-    plt.plot(c_cost, x_value, ls='steps-post--', color='r')
+    plt.plot(np.append(i_cost, np.max(totCost_3/2)),
+             np.append(i_value, np.max(i_value)),
+             ls='steps-post-', color='k')
+    plt.plot(np.append(c_cost, np.max(totCost_1/2)),
+             np.append(c_value, np.max(c_value)),
+             ls='steps-post--', color='k')
+    plt.plot(np.append(c_cost, np.max(totCost_1/2)),
+             np.append(x_value, np.max(x_value)),
+             ls='steps-post--', color='r')
+    plt.plot(np.append(i_cost, np.max(totCost_3/2)),
+             np.append(i_value, np.max(i_value)),
+             ls='steps-post-', color='k') # repeated to mask red color
     
-    plt.annotate('Upside Potential of FSS Success', xy=(2400, 5000), 
+    plt.annotate('Upside Potential of Centralized Strategy', xy=(1900, 4000), xytext=(1100, 6100), 
+            arrowprops=dict(arrowstyle='->',connectionstyle='arc3',ec='k'), 
             xycoords='data', textcoords='data', size=8, color='k')
-    plt.annotate('Downside Risk of FSS Failure', xy=(2300, 2000), xytext=(2500,600), 
+    plt.annotate('Upside Potential of any Federated Strategy', xy=(2450, 4300), 
+            xycoords='data', textcoords='data', size=8, color='k')
+    plt.annotate('', xy=(2400, 3300), xytext=(2400, 5500),
+            arrowprops=dict(arrowstyle='<->',connectionstyle='arc3',ec='k'), 
+            xycoords='data', textcoords='data', size=8, color='k')
+    plt.annotate('Downside Risk of Centralized Strategy', xy=(2550, 2000), xytext=(2750,600), 
             arrowprops=dict(arrowstyle='->',connectionstyle='arc3',ec='r'), 
             xycoords='data', textcoords='data', size=8, color='r')
     
     plt.xlabel('Initial Cost ($\S$)')
     plt.ylabel('24-turn Expected Net Value ($\S$)')
     plt.xlim([1000, 4000])
-    plt.ylim([-2000, 10000])
-    plt.legend(['Independent Pareto Frontier ($V_i$)','Centralized Pareto Frontier, FSS Success ($V_c$)','Centralized Pareto Frontier, FSS Failure  ($V_x$)'],loc='upper left')
+    plt.ylim([-500, 10000])
+    plt.legend(['Independent Pareto Frontier ($V_I$)',
+                'Centralized Pareto Frontier, Successful ($V_C$)',
+                'Centralized Pareto Frontier, Failed ($V_X$)'], loc='upper left')
     plt.grid()
     plt.gcf().set_size_inches(6.5, 3.5)
-    plt.savefig('ts-bvc{}.png'.format(suffix), bbox_inches='tight', dpi=300)
+    plt.savefig('ts-bvc.png', bbox_inches='tight', dpi=300)
+    
+    
+    xf_value = np.array([])
+    for i in f_id:
+        xf_value = np.append(xf_value, totExpValue_3[id_3==i]/2)
+        
+    f_ub = np.array([])
+    f_lb = np.array([])
+    for i in x:
+        f_ub = np.append(f_ub, np.max(f_value[f_cost<=i])
+                         if np.count_nonzero(f_cost<=i) > 0
+                         else f_value[0]);
+        f_lb = np.append(f_lb, xf_value[np.argmax(f_value[f_cost<=i])]
+                         if np.count_nonzero(f_cost<=i) > 0
+                         else xf_value[0]);
+    plt.clf()
+    plt.fill_between(x, v_ub, v_i, color='none', hatch='/',
+                     edgecolor=[.3,.3,.3,.5], linewidth=0.0, alpha=.3)
+    plt.fill_between(x, v_i, v_lb, color='none', hatch='\\',
+                     edgecolor=[1,.3,.3,.5], linewidth=0.0, alpha=.3)
+    plt.fill_between(x, f_ub, v_i, color='none', hatch='\\\\',
+                     edgecolor=[.3,.3,.3,.5], linewidth=0.0)
+    plt.fill_between(x, v_i, f_lb, color='none', hatch='//',
+                     edgecolor=[1,.3,.3,.5], linewidth=0.0)
+    plt.plot(np.append(i_cost, np.max(totCost_3/2)),
+             np.append(i_value, np.max(i_value)),
+             ls='steps-post-', color='k')
+    plt.plot(np.append(c_cost, np.max(totCost_1/2)),
+             np.append(c_value, np.max(c_value)),
+             ls='steps-post--', color='k', alpha=.3)
+    plt.plot(np.append(c_cost, np.max(totCost_1/2)),
+             np.append(x_value, np.max(x_value)),
+             ls='steps-post--', color='r', alpha=.3)
+    plt.plot(np.append(f_cost, np.max(totCost_2/2)),
+             np.append(f_value, np.max(f_value)),
+             ls='steps-post--', color='k')
+    plt.plot(np.append(f_cost, np.max(totCost_2/2)),
+             np.append(xf_value, np.max(xf_value)),
+             ls='steps-post--', color='r')
+    plt.plot(np.append(i_cost, np.max(totCost_3/2)),
+             np.append(i_value, np.max(i_value)),
+             ls='steps-post-', color='k') # repeated to mask red color
+    plt.xlabel('Initial Cost ($\S$)')
+    plt.ylabel('24-turn Expected Net Value ($\S$)')
+    plt.xlim([1000, 4000])
+    plt.ylim([-500, 10000])
+    plt.legend(['Independent Pareto Frontier ($V_I$)',
+                'Centralized Pareto Frontier, Successful ($V_C$)',
+                'Centralized Pareto Frontier, Failed ($V_{XC}$)',
+                'Federated Pareto Frontier, Successful ($V_F$)',
+                'Federated Pareto Frontier, Failed ($V_{XF}$)'], loc='upper left')
+    plt.grid()
+    plt.gcf().set_size_inches(6.5, 3.5)
+    plt.savefig('ts-bvc-fed.png', bbox_inches='tight', dpi=300)
     
     initialCost = 2000
     
-    for id in i_id:
-        i = np.where(i_id==id)[0][0]
+    for j in i_id:
+        i = np.where(i_id==j)[0][0]
         if (i + 1 == np.size(i_id) \
                 and i_cost[i] <= initialCost) \
                 or (i + 1 < np.size(i_id) \
@@ -510,10 +611,10 @@ def postProcessBVC(db, suffix=''):
                 and i_cost[i+1] > initialCost):
             print '===independent case==='
             print 'cost: ' + '%.0f'%i_cost[i] + ', value: ' + '%.0f'%i_value[i]
-            print 'id ' + '%0d'%id + ': ' + elements[id==id].tostring()
+            print 'id ' + '%0d'%j + ': ' + elements_3[id_3==j].tostring()
             
-    for id in c_id:
-        i = np.where(c_id==id)[0][0]
+    for j in c_id:
+        i = np.where(c_id==j)[0][0]
         if (i + 1 == np.size(c_id) \
                 and c_cost[i] <= initialCost) \
                 or (i + 1 < np.size(c_id) \
@@ -521,10 +622,10 @@ def postProcessBVC(db, suffix=''):
                     and c_cost[i+1] > initialCost):
             print '===centralized (successful) case==='
             print 'cost: ' + '%.0f'%c_cost[i] + ', value: ' + '%.0f'%c_value[i]
-            print 'id ' + '%0d'%id + ': ' + elements[id==id].tostring()
+            print 'id ' + '%0d'%j + ': ' + elements_1[id_1==j].tostring()
             
-    for id in c_id:
-        i = np.where(c_id==id)[0][0]
+    for j in c_id:
+        i = np.where(c_id==j)[0][0]
         if (i + 1 == np.size(c_id) \
                 and c_cost[i] <= initialCost) \
                 or (i + 1 < np.size(c_id) \
@@ -532,7 +633,29 @@ def postProcessBVC(db, suffix=''):
                 and c_cost[i+1] > initialCost):
             print '===centralized (failed) case==='
             print 'cost: ' + '%.0f'%c_cost[i] + ', value: ' + '%.0f'%x_value[i]
-            print 'id ' + '%0d'%id + ': ' + elements[id==id].tostring()
+            print 'id ' + '%0d'%j + ': ' + elements_3[id_3==j].tostring()
+            
+    for j in f_id:
+        i = np.where(f_id==j)[0][0]
+        if (i + 1 == np.size(f_id) \
+                and f_cost[i] <= initialCost) \
+                or (i + 1 < np.size(f_id) \
+                    and f_cost[i] <= initialCost \
+                    and f_cost[i+1] > initialCost):
+            print '===federated (successful) case==='
+            print 'cost: ' + '%.0f'%f_cost[i] + ', value: ' + '%.0f'%f_value[i]
+            print 'id ' + '%0d'%j + ': ' + elements_2[id_2==j].tostring()
+            
+    for j in f_id:
+        i = np.where(f_id==j)[0][0]
+        if (i + 1 == np.size(f_id) \
+                and f_cost[i] <= initialCost) \
+                or (i + 1 < np.size(f_id) \
+                and f_cost[i] <= initialCost \
+                and f_cost[i+1] > initialCost):
+            print '===federated (failed) case==='
+            print 'cost: ' + '%.0f'%f_cost[i] + ', value: ' + '%.0f'%xf_value[i]
+            print 'id ' + '%0d'%j + ': ' + elements_3[id_3==j].tostring()
 
 def postProcessGA(db, maxCost=None):
     """
@@ -671,6 +794,8 @@ if __name__ == '__main__':
         postProcessBVC(db, '2')
     elif args.experiment == 'bvc3':
         postProcessBVC(db, '3')
+    elif args.experiment == 'bvcP':
+        postPostProcessBVC(db)
     elif args.experiment == 'ga':
         postProcessGA(db, args.maxCost)
     else:
