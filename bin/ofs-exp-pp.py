@@ -36,6 +36,10 @@ def mapReduce(db, dbName, query=None):
     @type dbName: L{str}
     """
     # code below based on from https://gist.github.com/RedBeard0531/1886960
+    # to compute standard error in a map-reduce function
+    # this function computes separate results for player 1, player 2,
+    # and total value as p1, p2, tot
+    # TODO: generalize to more than two players
     ppMap = Code(
         "function() {" +
         "  emit({elements: this.elements," +
@@ -131,9 +135,9 @@ def processData(db, dbName, query=None):
     p1ValueAvg = np.array([])
     p2ValueAvg = np.array([])
     totValueAvg = np.array([])
-    pisl = np.array([], dtype=np.bool_)
-    oisl = np.array([], dtype=np.bool_)
-    osgl = np.array([], dtype=np.bool_)
+    pisl = np.array([], dtype=np.bool_) # boolean: does this design have pISL?
+    oisl = np.array([], dtype=np.bool_) # boolean: does this design have oISL?
+    osgl = np.array([], dtype=np.bool_) # boolean: does this desitn have oSGL?
     counter = 0
     with open('data-{}.csv'.format(dbName),'wb') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
@@ -181,6 +185,7 @@ def processData(db, dbName, query=None):
             p1ValueAvg = np.append(p1ValueAvg, doc['value'][u'p1Avg'])
             p2ValueAvg = np.append(p2ValueAvg, doc['value'][u'p2Avg'])
             totValueAvg = np.append(totValueAvg, doc['value'][u'totAvg'])
+            # determine tech option based on player 1's design
             m = re.search('((1\.[^\s]*\s*)+) (?:(2\.[^\s]*\s*)+)',
                           doc[u'_id'][u'elements'])
             if m:
@@ -216,6 +221,7 @@ def pareto(id, cost, expValue):
     p_cost = np.array([])
     p_value = np.array([])
     for i in range(0,np.size(cost)):
+        # check if i is non-dominated
         if np.sum(np.logical_and(cost<=cost[i], expValue>expValue[i])) == 0:
             p_id = np.append(p_id, id[i])
             p_cost = np.append(p_cost, cost[i])
@@ -445,6 +451,12 @@ def postProcessBVC(db, suffix=''):
             ylim=[-500, 4000] if suffix == '3' else [-500, 10000])
 
 def postPostProcessBVC(db):
+    """
+    Performs post-post-processing for all variants of the
+    bounding value of collaboration experiment.
+    @param db: the database
+    @type db: L{Database}
+    """
     (id_1, elements_1, p1Cost_1, p2Cost_1, totCost_1,
      p1ValueStdErr_1, p2ValueStdErr_1, totValueStdErr_1, 
      p1ValueAvg_1, p2ValueAvg_1, totValueAvg_1,
@@ -468,6 +480,8 @@ def postPostProcessBVC(db):
                          'xtick.labelsize':8,
                          'ytick.labelsize':8})
     
+    # plot transformation tradespaces at varying levels of estimated cooperation
+    # for centralized and federated strategies
     for p in range(5,100,5):
         tradespaceCentralized('bvc-uc{}'.format(p), id_1, 
             (totCost_1*float(p)/100 + totCost_3*(1-float(p)/100))/2,
@@ -482,18 +496,28 @@ def postPostProcessBVC(db):
             pisl_2, oisl_2, osgl_2,
             ylim=[-500, 10000])
 
+    # set of pareto-optimal points
     i_id, i_cost, i_value = pareto(id_3, totCost_3/2, totExpValue_3/2)
     f_id, f_cost, f_value = pareto(id_2, totCost_2/2, totExpValue_2/2)
     c_id, c_cost, c_value = pareto(id_1, totCost_1/2, totExpValue_1/2)
     
+    # evaluate centralized pareto-optimal points under independent strategy
     x_value = np.array([])
     for i in c_id:
         x_value = np.append(x_value, totExpValue_3[id_3==i]/2)
     
+    # evaluate federated pareto-optimal points under independent strategy
+    xf_value = np.array([])
+    for i in f_id:
+        xf_value = np.append(xf_value, totExpValue_3[id_3==i]/2)
+    
+    # evaluate lower and upper bounds and independent value at sampled points
     x = np.linspace(np.min(totCost_1/2), np.max(totCost_1/2),1000)
     v_ub = np.array([])
     v_i = np.array([])
     v_lb = np.array([])
+    f_ub = np.array([])
+    f_lb = np.array([])
     for i in x:
         v_ub = np.append(v_ub, np.max(c_value[c_cost<=i])
                          if np.count_nonzero(c_cost<=i) > 0
@@ -504,7 +528,14 @@ def postPostProcessBVC(db):
         v_lb = np.append(v_lb, x_value[np.argmax(c_value[c_cost<=i])]
                          if np.count_nonzero(c_cost<=i) > 0
                          else x_value[0]);
+        f_ub = np.append(f_ub, np.max(f_value[f_cost<=i])
+                         if np.count_nonzero(f_cost<=i) > 0
+                         else f_value[0]);
+        f_lb = np.append(f_lb, xf_value[np.argmax(f_value[f_cost<=i])]
+                         if np.count_nonzero(f_cost<=i) > 0
+                         else xf_value[0]);
     
+    # generate risk-reward tradespace for centralized strategy
     plt.clf()
     plt.fill_between(x, v_ub, v_i, color='none', hatch='/',
                      edgecolor=[.3,.3,.3,.5], linewidth=0.0)
@@ -522,7 +553,6 @@ def postPostProcessBVC(db):
     plt.plot(np.append(i_cost, np.max(totCost_3/2)),
              np.append(i_value, np.max(i_value)),
              ls='steps-post-', color='k') # repeated to mask red color
-    
     plt.annotate('Upside Potential of Centralized Strategy', xy=(1900, 4000), xytext=(1100, 6100), 
             arrowprops=dict(arrowstyle='->',connectionstyle='arc3',ec='k'), 
             xycoords='data', textcoords='data', size=8, color='k')
@@ -534,7 +564,6 @@ def postPostProcessBVC(db):
     plt.annotate('Downside Risk of Centralized Strategy', xy=(2550, 2000), xytext=(2750,600), 
             arrowprops=dict(arrowstyle='->',connectionstyle='arc3',ec='r'), 
             xycoords='data', textcoords='data', size=8, color='r')
-    
     plt.xlabel('Initial Cost ($\S$)')
     plt.ylabel('24-turn Expected Net Value ($\S$)')
     plt.xlim([1000, 4000])
@@ -545,21 +574,8 @@ def postPostProcessBVC(db):
     plt.grid()
     plt.gcf().set_size_inches(6.5, 3.5)
     plt.savefig('ts-bvc.png', bbox_inches='tight', dpi=300)
-    
-    
-    xf_value = np.array([])
-    for i in f_id:
-        xf_value = np.append(xf_value, totExpValue_3[id_3==i]/2)
         
-    f_ub = np.array([])
-    f_lb = np.array([])
-    for i in x:
-        f_ub = np.append(f_ub, np.max(f_value[f_cost<=i])
-                         if np.count_nonzero(f_cost<=i) > 0
-                         else f_value[0]);
-        f_lb = np.append(f_lb, xf_value[np.argmax(f_value[f_cost<=i])]
-                         if np.count_nonzero(f_cost<=i) > 0
-                         else xf_value[0]);
+    # generate risk-reward tradespace for federated strategy
     plt.clf()
     plt.fill_between(x, v_ub, v_i, color='none', hatch='/',
                      edgecolor=[.3,.3,.3,.5], linewidth=0.0, alpha=.3)
@@ -600,8 +616,10 @@ def postPostProcessBVC(db):
     plt.gcf().set_size_inches(6.5, 3.5)
     plt.savefig('ts-bvc-fed.png', bbox_inches='tight', dpi=300)
     
+    # hard-code initial cost of interest for case study
     initialCost = 2000
     
+    # find optimal design under independent strategy
     for j in i_id:
         i = np.where(i_id==j)[0][0]
         if (i + 1 == np.size(i_id) \
@@ -612,7 +630,8 @@ def postPostProcessBVC(db):
             print '===independent case==='
             print 'cost: ' + '%.0f'%i_cost[i] + ', value: ' + '%.0f'%i_value[i]
             print 'id ' + '%0d'%j + ': ' + elements_3[id_3==j].tostring()
-            
+    
+    # find optimal design under centralized strategy
     for j in c_id:
         i = np.where(c_id==j)[0][0]
         if (i + 1 == np.size(c_id) \
@@ -624,6 +643,7 @@ def postPostProcessBVC(db):
             print 'cost: ' + '%.0f'%c_cost[i] + ', value: ' + '%.0f'%c_value[i]
             print 'id ' + '%0d'%j + ': ' + elements_1[id_1==j].tostring()
             
+    # find optimal centralized design, evaluated under independent strategy
     for j in c_id:
         i = np.where(c_id==j)[0][0]
         if (i + 1 == np.size(c_id) \
@@ -635,6 +655,7 @@ def postPostProcessBVC(db):
             print 'cost: ' + '%.0f'%c_cost[i] + ', value: ' + '%.0f'%x_value[i]
             print 'id ' + '%0d'%j + ': ' + elements_3[id_3==j].tostring()
             
+    # find optimal design under federated strategy
     for j in f_id:
         i = np.where(f_id==j)[0][0]
         if (i + 1 == np.size(f_id) \
@@ -646,6 +667,7 @@ def postPostProcessBVC(db):
             print 'cost: ' + '%.0f'%f_cost[i] + ', value: ' + '%.0f'%f_value[i]
             print 'id ' + '%0d'%j + ': ' + elements_2[id_2==j].tostring()
             
+    # find optimal federated design, evaluated under independent strategy
     for j in f_id:
         i = np.where(f_id==j)[0][0]
         if (i + 1 == np.size(f_id) \
