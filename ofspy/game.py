@@ -124,11 +124,13 @@ class Game(object):
         @return: L{Element}
         """
         modules = []
+        # generate and append modules
         for mId, mType in enumerate(mTypes):
             module = self.generateModule(mType, pId, eId, mId)
             if module is not None:
                 modules.append(module)
-                
+        
+        # parse and instantiate element based on type
         if any(t['type'] == eType for t in self.stationTypes):
             spec = next(t for t in self.stationTypes
                         if t['type'] == eType)
@@ -166,6 +168,7 @@ class Game(object):
         @type mId: L{int}
         @return: L{Module}
         """
+        # parse and instantiate module based on type
         if any(t['type'] == mType for t in self.sglTypes):
             spec = next(t for t in self.sglTypes
                         if t['type'] == mType)
@@ -251,11 +254,14 @@ class Game(object):
         @type fops: L{str}
         @return: L{Context}
         """
+        # generate locations based on number of sectors
         locations = []
         for i in range(self.numSectors):
             locations.append(Surface(i, name='SUR{0}'.format(i+1)))
             for altitude in self.altitudes:
                 locations.append(Orbit(i, altitude, name='{0}{1}'.format(altitude, i+1)))
+        
+        # generate events based on known types
         events = []
         for eType in self.eventTypes:
             for i in range(eType[0]):
@@ -272,14 +278,21 @@ class Game(object):
                                               name='{0}.{1}'.format(eType[2]['type'], i+1)))
                 else:
                     logging.warning('Cannot interpret event type {0}'.format(eType))
+        
+        # generate federates based on number of players
         federates = []
         for i in range(self.numPlayers):
+            # parse federate operations strategy
             operations = None
             if re.match('d', ops):
+                # independent operations strategy
                 planningHorizon = 6
                 storagePenalty = -100
                 islPenalty = -10
                 if re.match('d(\d+,(?:a|\d+),\d+)', ops):
+                    # case dH,s,i:  planning horizon H,
+                    #               storage opportunity cost s,
+                    #               isl opportunity cost i
                     args = re.search('(\d+,(?:a|\d+),\d+)',
                                      ops).group(0).split(',')
                     planningHorizon = int(args[0])
@@ -289,6 +302,7 @@ class Game(object):
                         storagePenalty = -1*int(args[1])
                     islPenalty = -1*int(args[2])
                 elif re.match('(\d)', ops):
+                    # case dH:  planning horizon H
                     planningHorizon = int(re.search(
                         '(\d+)', ops).group(0))
                 operations = DynamicOperations(
@@ -296,17 +310,23 @@ class Game(object):
                     storagePenalty=storagePenalty,
                     islPenalty=islPenalty)
             else:
+                # no operations strategy (default)
                 operations = Operations()
             federates.append(Federate(name='P{0}'.format(i+1),
                                     initialCash=self.initialCash,
                                     operations=operations,
                                     elements=[]))
+        # parse federation operations strategy
         foperations = None
         if re.match('d', fops):
+            # parse centralized operations strategy
             planningHorizon = 6
             storagePenalty = -100
             islPenalty = -10
             if re.match('d\d+,(?:a|\d+),\d+', fops):
+                # case dH,s,i:  planning horizon H,
+                #               storage opportunity cost s,
+                #               isl opportunity cost i
                 args = re.search('(\d+,(?:a|\d+),\d+)',
                                  fops).group(0).split(',')
                 planningHorizon = int(args[0])
@@ -316,6 +336,7 @@ class Game(object):
                     storagePenalty = -1*int(args[1])
                 islPenalty = -1*int(args[2])
             elif re.match('(\d)', fops):
+                # case dH:  planning horizon H
                 planningHorizon = int(re.search(
                     '(\d+)', fops).group(0))
             foperations = DynamicOperations(
@@ -323,12 +344,18 @@ class Game(object):
                 storagePenalty=storagePenalty,
                 islPenalty=islPenalty)
         elif re.match('x', fops):
+            # parse federated operations strategy
             planningHorizon = 6
             storagePenalty = -100
             islPenalty = -10
             costSGL = 50
             costISL = 20
             if re.match('x\d+,\d+,\d+,(?:a|\d+),\d+',fops) is not None:
+                # case xG,I,H,s,i:  SGL fixed cost G,
+                #                   ISL fixed cost I,
+                #                   planning horizon H,
+                #                   storage opportunity cost s,
+                #                   isl opportunity cost i
                 args = re.search('(\d+,\d+,\d+,(?:a|\d+),\d+)',
                                  fops).group(0).split(',')
                 costSGL = int(args[0])
@@ -340,6 +367,9 @@ class Game(object):
                     storagePenalty = -1*int(args[3])
                 islPenalty = -1*int(args[4])
             elif re.match('x\d+,(?:a|\d+),\d+', fops):
+                # case xH,s,i:  planning horizon H,
+                #               storage opportunity cost s,
+                #               isl opportunity cost i
                 args = re.search('(\d+,(?:a|\d+),\d+)',
                                  fops).group(0).split(',')
                 planningHorizon = int(args[0])
@@ -349,6 +379,10 @@ class Game(object):
                     storagePenalty = -1*int(args[1])
                 islPenalty = -1*int(args[2])
             elif re.match('x\d+,\d+,\d+', fops):
+                # case xG,I,H:  SGL fixed cost G,
+                #               ISL fixed cost I,
+                #               planning horizon H
+                # FIXME: this case is not currently possible
                 args = re.search('(\d+,\d+,\d+)',
                                  fops).group(0).split(',')
                 costSGL = int(args[0])
