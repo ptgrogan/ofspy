@@ -573,16 +573,16 @@ if __name__ == '__main__':
                         help='the experiment to run: masv or bvc')
     parser.add_argument('-d', '--numTurns', type=int, default=24,
                         help='simulation duration (number of turns)')
-    parser.add_argument('-p', '--numPlayers', type=int, default=1,
+    parser.add_argument('-p', '--numPlayers', type=int, default=None,
                         help='number of players')
-    parser.add_argument('-i', '--initialCash', type=int, default=1200,
+    parser.add_argument('-i', '--initialCash', type=int, default=None,
                         help='initial cash')
     parser.add_argument('-o', '--ops', type=str, default='d6',
                         help='federate operations model specification')
     parser.add_argument('-f', '--fops', type=str, default='',
                         help='federation operations model specification')
     parser.add_argument('-l', '--logging', type=str, default='error',
-                        choices=['debug','info','warning','warning'],
+                        choices=['debug','info','warning','error'],
                         help='logging level')
     parser.add_argument('-s', '--start', type=int, default=0,
                         help='starting random number seed')
@@ -615,7 +615,21 @@ if __name__ == '__main__':
     elif len(args.experiment) == 1 and args.experiment[0] == 'bvc3':
         executeBVC3(args.dbHost, args.dbPort, args.start, args.stop)
     else:
+        # count number of players
+        if args.numPlayers is None:
+            numPlayers = 0
+            for experiment in args.experiment:
+                specs = experiment.split(',')
+                if len(specs) > 0 and len(specs[0].split('@')) == 2:
+                    # parse player ownership
+                    if len(specs[0].split('@')[0].split('.')) == 2:
+                        pId = int(specs[0].split('@')[0].split('.')[0])-1
+                    else:
+                        pId = 0
+                    numPlayers = max(numPlayers, pId+1)
+        else:
+            numPlayers = args.numPlayers
         execute(args.dbHost, args.dbPort, None, args.start, args.stop,
                 [' '.join(args.experiment)],
-                args.numPlayers, args.initialCash, args.numTurns,
+                numPlayers, args.initialCash, args.numTurns,
                 args.ops, args.fops)
