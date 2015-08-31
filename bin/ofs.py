@@ -28,7 +28,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="This program runs an Orbital Federates simulation.")
     parser.add_argument('elements', type=str, nargs='+',
                         help='the list of initial elements, e.g. 1.GroundSta@SUR1,pSGL 1.SmallSat@LEO1,pSGL,SAR')
-    parser.add_argument('-d', '--numTurns', type=int, default=None,
+    parser.add_argument('-d', '--numTurns', type=int, default=24,
                         help='simulation duration (number of turns)')
     parser.add_argument('-p', '--numPlayers', type=int, default=None,
                         help='number of players')
@@ -57,6 +57,7 @@ if __name__ == '__main__':
         level = logging.ERROR
     logging.basicConfig(level=level)
     
+    # count the number of players if not specified
     if args.numPlayers is None:
         numPlayers = 0
         for element in args.elements:
@@ -71,11 +72,13 @@ if __name__ == '__main__':
     else:
         numPlayers = args.numPlayers
     
+    # set up the simulation
     ofs = OFS(elements=args.elements, numTurns=args.numTurns,
                   numPlayers=numPlayers, initialCash=args.initialCash,
                   seed=args.seed, ops=args.ops, fops=args.fops)
     
     if args.gui:
+        # launch gui and start simulation
         from Tkinter import Tk
         from ofspy_gui.frame import FrameOFS
         
@@ -84,6 +87,7 @@ if __name__ == '__main__':
         ofs.sim.init()
         root.mainloop()
     else:
+        # execute simulation and output results
         results = ofs.execute()
         for result in results:
             print '{0}:{1}'.format(result[0], result[1])
