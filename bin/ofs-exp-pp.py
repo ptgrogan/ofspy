@@ -482,6 +482,7 @@ def postPostProcessBVC(db):
     
     # plot transformation tradespaces at varying levels of estimated cooperation
     # for centralized and federated strategies
+    """
     for p in range(5,100,5):
         tradespaceCentralized('bvc-uc{}'.format(p), id_1, 
             (totCost_1*float(p)/100 + totCost_3*(1-float(p)/100))/2,
@@ -495,6 +496,7 @@ def postPostProcessBVC(db):
             (totValueStdErr_2*float(p)/100 + totValueStdErr_3*(1-float(p)/100))/2,
             pisl_2, oisl_2, osgl_2,
             ylim=[-500, 10000])
+    """
 
     # set of pareto-optimal points
     i_id, i_cost, i_value = pareto(id_3, totCost_3/2, totExpValue_3/2)
@@ -510,6 +512,13 @@ def postPostProcessBVC(db):
     xf_value = np.array([])
     for i in f_id:
         xf_value = np.append(xf_value, totExpValue_3[id_3==i]/2)
+    
+    # compute errors
+    i_err = np.array([totValueStdErr_3[np.where(id_3==i)]/2 for i in i_id])
+    c_err = np.array([totValueStdErr_1[np.where(id_1==i)]/2 for i in c_id])
+    xc_err = np.array([totValueStdErr_3[np.where(id_3==i)]/2 for i in c_id])
+    f_err = np.array([totValueStdErr_2[np.where(id_2==i)]/2 for i in f_id])
+    xf_err = np.array([totValueStdErr_3[np.where(id_3==i)]/2 for i in f_id])
     
     # evaluate lower and upper bounds and independent value at sampled points
     x = np.linspace(np.min(totCost_1/2), np.max(totCost_1/2),1000)
@@ -538,7 +547,7 @@ def postPostProcessBVC(db):
     # generate risk-reward tradespace for centralized strategy
     plt.clf()
     plt.fill_between(x, v_ub, v_i, color='none', hatch='/',
-                     edgecolor=[.3,.3,.3,.5], linewidth=0.0)
+                     edgecolor=[.3,.3,1,.5], linewidth=0.0)
     plt.fill_between(x, v_i, v_lb, color='none', hatch='\\',
                      edgecolor=[1,.3,.3,.5], linewidth=0.0)
     plt.plot(np.append(i_cost, np.max(totCost_3/2)),
@@ -546,16 +555,31 @@ def postPostProcessBVC(db):
              ls='steps-post-', color='k')
     plt.plot(np.append(c_cost, np.max(totCost_1/2)),
              np.append(c_value, np.max(c_value)),
-             ls='steps-post--', color='k')
+             ls='steps-post--', color='b')
     plt.plot(np.append(c_cost, np.max(totCost_1/2)),
              np.append(x_value, np.max(x_value)),
-             ls='steps-post--', color='r')
+             ls='steps-post:', color='r')
+    # plot design points with labels
+    plt.errorbar(i_cost, i_value, yerr=1.96*i_err,
+                 fmt='none',color='k',ecolor='k', alpha=0.3)
+    plt.errorbar(c_cost, c_value, yerr=1.96*c_err,
+                 fmt='none',color='b',ecolor='b', alpha=0.3)
+    plt.errorbar(c_cost, x_value, yerr=1.96*xc_err,
+                 fmt='none',color='r',ecolor='r', alpha=0.3)
+    for i in i_id:
+        plt.annotate('%0d'%i, xy=(i_cost[i_id==i], i_value[i_id==i]),
+                    xytext=(-8,2), textcoords='offset points', size=6, color='k')
+    for i in c_id:
+        plt.annotate('%0d'%i, xy=(c_cost[c_id==i], c_value[c_id==i]),
+                    xytext=(-8,2), textcoords='offset points', size=6, color='b')
+        plt.annotate('%0d'%i, xy=(c_cost[c_id==i], x_value[c_id==i]),
+                    xytext=(2,-8), textcoords='offset points', size=6, color='r')
     plt.plot(np.append(i_cost, np.max(totCost_3/2)),
              np.append(i_value, np.max(i_value)),
              ls='steps-post-', color='k') # repeated to mask red color
-    plt.annotate('Upside Potential of Centralized Strategy', xy=(1900, 4000), xytext=(1100, 6100), 
-            arrowprops=dict(arrowstyle='->',connectionstyle='arc3',ec='k'), 
-            xycoords='data', textcoords='data', size=8, color='k')
+    plt.annotate('Upside Potential of Centralized Strategy', xy=(2100, 4000), xytext=(1100, 6100), 
+            arrowprops=dict(arrowstyle='->',connectionstyle='arc3',ec='b'), 
+            xycoords='data', textcoords='data', size=8, color='b')
     plt.annotate('Upside Potential of any Federated Strategy', xy=(2450, 4300), 
             xycoords='data', textcoords='data', size=8, color='k')
     plt.annotate('', xy=(2400, 3300), xytext=(2400, 5500),
@@ -567,22 +591,23 @@ def postPostProcessBVC(db):
     plt.xlabel('Initial Cost ($\S$)')
     plt.ylabel('24-turn Expected Net Value ($\S$)')
     plt.xlim([1000, 4000])
-    plt.ylim([-500, 10000])
-    plt.legend(['Independent Pareto Frontier ($V_I$)',
-                'Centralized Pareto Frontier, Successful ($V_C$)',
-                'Centralized Pareto Frontier, Failed ($V_X$)'], loc='upper left')
-    plt.grid()
-    plt.gcf().set_size_inches(6.5, 3.5)
+    plt.ylim([-1000, 10000])
+    plt.legend([r'Independent $(\mathcal{V}_i^{I,I} \approx \mathcal{V}_i^{I,C})$',
+                r'Centralized, Successful $(\mathcal{V}_i^{C,C})$',
+                r'Centralized, Failed ($\mathcal{V}_i^{C,I})$'],
+        loc='upper left',
+        handlelength=5)
+    plt.gcf().set_size_inches(7, 3.5)
     plt.savefig('ts-bvc.png', bbox_inches='tight', dpi=300)
         
     # generate risk-reward tradespace for federated strategy
     plt.clf()
     plt.fill_between(x, v_ub, v_i, color='none', hatch='/',
-                     edgecolor=[.3,.3,.3,.5], linewidth=0.0, alpha=.3)
+                     edgecolor=[.3,.3,1,.5], linewidth=0.0, alpha=.3)
     plt.fill_between(x, v_i, v_lb, color='none', hatch='\\',
                      edgecolor=[1,.3,.3,.5], linewidth=0.0, alpha=.3)
     plt.fill_between(x, f_ub, v_i, color='none', hatch='\\\\',
-                     edgecolor=[.3,.3,.3,.5], linewidth=0.0)
+                     edgecolor=[.3,.3,1,.5], linewidth=0.0)
     plt.fill_between(x, v_i, f_lb, color='none', hatch='//',
                      edgecolor=[1,.3,.3,.5], linewidth=0.0)
     plt.plot(np.append(i_cost, np.max(totCost_3/2)),
@@ -590,34 +615,112 @@ def postPostProcessBVC(db):
              ls='steps-post-', color='k')
     plt.plot(np.append(c_cost, np.max(totCost_1/2)),
              np.append(c_value, np.max(c_value)),
-             ls='steps-post--', color='k', alpha=.3)
+             ls='steps-post--', color='b', alpha=.3)
     plt.plot(np.append(c_cost, np.max(totCost_1/2)),
              np.append(x_value, np.max(x_value)),
-             ls='steps-post--', color='r', alpha=.3)
+             ls='steps-post:', color='r', alpha=.3)
     plt.plot(np.append(f_cost, np.max(totCost_2/2)),
              np.append(f_value, np.max(f_value)),
-             ls='steps-post--', color='k')
+             ls='steps-post--', color='b')
     plt.plot(np.append(f_cost, np.max(totCost_2/2)),
              np.append(xf_value, np.max(xf_value)),
-             ls='steps-post--', color='r')
+             ls='steps-post:', color='r')
     plt.plot(np.append(i_cost, np.max(totCost_3/2)),
              np.append(i_value, np.max(i_value)),
              ls='steps-post-', color='k') # repeated to mask red color
+    # plot design points with labels
+    plt.errorbar(i_cost, i_value, yerr=1.96*i_err,
+                 fmt='none',color='k',ecolor='k', alpha=0.3)
+    plt.errorbar(f_cost, f_value, yerr=1.96*f_err,
+                 fmt='none',color='b',ecolor='b', alpha=0.3)
+    plt.errorbar(f_cost, xf_value, yerr=1.96*xf_err,
+                 fmt='none',color='r',ecolor='r', alpha=0.3)
+    for i in i_id:
+        plt.annotate('%0d'%i, xy=(i_cost[i_id==i], i_value[i_id==i]),
+                    xytext=(-8,2), textcoords='offset points', size=6, color='k')
+    for i in f_id:
+        plt.annotate('%0d'%i, xy=(f_cost[f_id==i], f_value[f_id==i]),
+                    xytext=(-8,2), textcoords='offset points', size=6, color='b')
+        plt.annotate('%0d'%i, xy=(f_cost[f_id==i], xf_value[f_id==i]),
+                    xytext=(2,-8), textcoords='offset points', size=6, color='r')
     plt.xlabel('Initial Cost ($\S$)')
     plt.ylabel('24-turn Expected Net Value ($\S$)')
     plt.xlim([1000, 4000])
-    plt.ylim([-500, 10000])
-    plt.legend(['Independent Pareto Frontier ($V_I$)',
-                'Centralized Pareto Frontier, Successful ($V_C$)',
-                'Centralized Pareto Frontier, Failed ($V_{XC}$)',
-                'Federated Pareto Frontier, Successful ($V_F$)',
-                'Federated Pareto Frontier, Failed ($V_{XF}$)'], loc='upper left')
-    plt.grid()
-    plt.gcf().set_size_inches(6.5, 3.5)
+    plt.ylim([-1000, 10000])
+    plt.legend([r'Independent $(\mathcal{V}_i^{I,I}\approx\mathcal{V}_i^{I,C}\approx\mathcal{V}_i^{I,F})$',
+                r'Centralized, Successful $(\mathcal{V}_i^{C,C})$',
+                r'Centralized, Failed $(\mathcal{V}_i^{C,I}\approx\mathcal{V}_i^{C,F})$',
+                r'Federated, Successful $(\mathcal{V}_i^{F,F})$',
+                r'Federated, Failed $(\mathcal{V}_i^{F,I}\approx\mathcal{V}_i^{F,C})$'],
+        loc='upper left',
+        handlelength=5)
+    plt.gcf().set_size_inches(7, 3.5)
     plt.savefig('ts-bvc-fed.png', bbox_inches='tight', dpi=300)
     
     # hard-code initial cost of interest for case study
     initialCost = 2000
+    
+    plt.clf()
+    
+    p = np.linspace(0,1,100)
+    pi_value = np.array([])
+    pc_value = np.array([])
+    pf_value = np.array([])
+    pc2_value = np.array([])
+    pf2_value = np.array([])
+    pf3_value = np.array([])
+    for p_i in p:
+        pi_value = np.append(pi_value, np.max([
+            totExpValue_3[np.where(id_3==i)]/2
+            for i in id_3[np.where(totCost_3/2<=initialCost)]]))
+        pc_value = np.append(pc_value, np.max([
+            totExpValue_3[np.where(id_3==i)]/2 * (1-p_i)
+            + totExpValue_1[np.where(id_1==i)]/2 * p_i
+            for i in id_1[np.where(totCost_1/2<=initialCost)]]))
+        pf_value = np.append(pf_value, np.max([
+            totExpValue_3[np.where(id_3==i)]/2 * (1-p_i)
+            + totExpValue_2[np.where(id_2==i)]/2 * p_i
+            for i in id_2[np.where(totCost_2/2<=initialCost)]]))
+        pc2_value = np.append(pc2_value, 
+            totExpValue_3[np.where(id_3==53)]/2 * (1-p_i)
+            + totExpValue_1[np.where(id_3==53)]/2 * p_i)
+        pf2_value = np.append(pf2_value, 
+            totExpValue_3[np.where(id_2==61)]/2 * (1-p_i)
+            + totExpValue_2[np.where(id_2==61)]/2 * p_i)
+        pf3_value = np.append(pf3_value, 
+            totExpValue_3[np.where(id_2==41)]/2 * (1-p_i)
+            + totExpValue_2[np.where(id_2==41)]/2 * p_i)
+    plt.plot(p,pi_value,'-k',p,pc_value,'--k',p,pf_value,':k')
+    plt.plot(p[p<.25],pc2_value[p<.25], ls='--', color=[.3,.3,.3,.3])
+    plt.plot(p[p<.87],pf2_value[p<.87], ls=':', color=[.3,.3,.3,.3])
+    plt.plot(p[np.logical_or(p<.45,p>.87)],pf3_value[np.logical_or(p<.45,p>.87)], ls=':', color=[.3,.3,.3,.3])
+    plt.legend([r'Independent $(\Upsilon_i)$', r'Centralized $(\Upsilon_i^C)$',r'Federated $(\Upsilon_i^F)$'],
+        loc='upper left', handlelength=5)
+    plt.xlabel('Probability of Cooperation $(P_j(c))$')
+    plt.ylabel(r'24-turn Expected Net Value $(\S)$')
+    plt.ylim([0,4000])
+    plt.annotate(r'$\pi_j^C(d_{53})$', xy=(.25, 1800), xytext=(.25, 1100), 
+            arrowprops=dict(arrowstyle='->',connectionstyle='arc3',ec='k'), 
+            xycoords='data', textcoords='data', ha='center', size=8, color='k')
+    plt.annotate(r'$\pi_j^F(d_{61})$', xy=(.56, 1800), xytext=(.56, 800), 
+            arrowprops=dict(arrowstyle='->',connectionstyle='arc3',ec='k'), 
+            xycoords='data', textcoords='data', ha='center', size=8, color='k')
+    plt.annotate(r'$\pi_j^F(d_{41})$', xy=(.45, 1800), xytext=(.45, 1100), 
+            arrowprops=dict(arrowstyle='->',connectionstyle='arc3',ec='k'), 
+            xycoords='data', textcoords='data', ha='center', size=8, color='k')
+    plt.annotate(r'$\pi_j^F(d_{61},d_{41})$', xy=(.87, 2600), xytext=(.87, 1100), 
+            arrowprops=dict(arrowstyle='->',connectionstyle='arc3',ec='k'), 
+            xycoords='data', textcoords='data', ha='center', size=8, color='k')
+    ax2 = plt.gca().twinx()
+    ax2.set_ylim([0,4000])
+    ax2.set_yticks([pf2_value[0],pc2_value[0],pi_value[0],pf_value[-1],pc_value[-1]])
+    ax2.set_yticklabels([r'$\mathcal{V}_i^{F,I}$',r'$\mathcal{V}_i^{C,I}$',
+                         r'$\mathcal{V}_i^{I,I}$',r'$\mathcal{V}_i^{F,F}$',
+                         r'$\mathcal{V}_i^{C,C}$'])
+    plt.gcf().set_size_inches(3.5, 3)
+    plt.savefig('ts-bvc-prob.png', bbox_inches='tight', dpi=300)
+    
+    
     
     # find optimal design under independent strategy
     for j in i_id:
@@ -776,7 +879,7 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--logging', type=str, default='error',
                         choices=['debug','info','warning','error'],
                         help='logging level')
-    parser.add_argument('--dbHost', type=str, required=True,
+    parser.add_argument('--dbHost', type=str, default='localhost',
                         help='database host')
     parser.add_argument('--dbPort', type=int, default=27017,
                         help='database port')

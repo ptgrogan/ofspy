@@ -459,6 +459,8 @@ def execute(dbHost, dbPort, dbName, start, stop, cases, numPlayers,
     @type dbHost: L{str}
     @param dbPort: the database port
     @type dbPort: L{int}
+    @param dbName: the database collection name
+    @type dbName: L{str}
     @param start: the starting seed
     @type start: L{int}
     @param stop: the stopping seed
@@ -494,6 +496,8 @@ def queryCase((dbHost, dbPort, dbName, elements, numPlayers,
     @type dbHost: L{str}
     @param dbPort: the database port
     @type dbPort: L{int}
+    @param dbName: the database collection name
+    @type dbName: L{str}
     @param elements: the design specifications
     @type elements: L{list}
     @param numPlayers: the number of players
