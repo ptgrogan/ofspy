@@ -16,8 +16,6 @@ limitations under the License.
 
 import argparse
 import logging
-import math
-import re
 import sys,os
 # add ofspy to system path
 sys.path.append(os.path.abspath('..'))
