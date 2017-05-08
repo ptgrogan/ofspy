@@ -743,7 +743,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                                     if (txSatellite not in ownSatellites
                                         or rxSatellite not in ownSatellites):
                                         J.add(L_d[t][i][j][k][l],
-                                              self.costISL*demand.size)
+                                              -1*self.costISL*demand.size)
                                     else:
                                         # small penalty for opportunity cost
                                         J.add(L_d[t][i][j][k][l], self.islPenalty*demand.size)
@@ -761,7 +761,7 @@ class FixedCostDynamicOperations(DynamicOperations):
                                     if (txSatellite not in ownSatellites
                                         or rxSatellite not in ownSatellites):
                                         J.add(L_c[t][i][j][k][l],
-                                              self.costISL*contract.demand.size)
+                                              -1*self.costISL*contract.demand.size)
                                     else:
                                         # small penalty for opportunity cost
                                         J.add(L_c[t][i][j][k][l],
