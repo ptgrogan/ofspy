@@ -18,8 +18,7 @@ from Tkinter import *
 
 from ofspy.ofs import OFS
 from ofspy.context import Context
-from ofspy.federation import Federation
-from ofspy.federate import Federate
+from ofspy.controller import Federation, Federate
 from ofspy.element import Element
 from ofspy.module import Module
 
@@ -73,9 +72,9 @@ class LogOFS(Frame):
         self.options.pack(side=TOP)
         self.text.pack(side=BOTTOM, fill=BOTH, expand=1)
         self.text.config(state=DISABLED)
-        
+
         self.handleContext(ofs.context)
-            
+
     def handleContext(self, context):
         self.text.tag_configure(context.name, foreground='pink')
         context.on('init advance', self.contextAdvance)
@@ -85,7 +84,7 @@ class LogOFS(Frame):
             self.handleFederation(federation,
                                   self.colors[len(self.colors) - 1
                                               - (i % len(self.colors))])
-    
+
     def handleFederation(self, federation, color):
         self.text.tag_configure(federation.name, foreground=color)
         federation.on('join', self.federationJoin)
@@ -97,7 +96,7 @@ class LogOFS(Frame):
         federation.on('sense', self.controllerSense)
         for i, federate in enumerate(federation.federates):
             self.handleFederate(federate, self.colors[i % len(self.colors)])
-            
+
     def handleFederate(self, federate, color):
         self.text.tag_configure(federate.name, foreground=color)
         federate.on('design', self.federateDesign)
@@ -109,7 +108,7 @@ class LogOFS(Frame):
         federate.on('sense', self.controllerSense)
         for element in federate.elements:
             self.handleElement(element, color)
-            
+
     def handleElement(self, element, color):
         self.text.tag_configure(element.name, foreground=color)
         element.on('store', self.elementStore)
@@ -119,7 +118,7 @@ class LogOFS(Frame):
         element.on('receive', self.elementReceive)
         for module in element.modules:
             self.handleModule(module, color)
-            
+
     def handleModule(self, module, color):
         self.text.tag_configure(module.name, foreground=color)
         module.on('store', self.moduleStore)
@@ -129,7 +128,7 @@ class LogOFS(Frame):
         module.on('exchange', self.moduleExchange)
         module.on('transmit', self.moduleTransmit)
         module.on('receive', self.moduleReceive)
-    
+
     def append(self, source, message):
         if ((isinstance(source, Context) and self.showContext.get())
              or (isinstance(source, Federation) and self.showFederation.get())
@@ -140,14 +139,14 @@ class LogOFS(Frame):
             self.text.insert(END, source.name, (source.name,))
             self.text.insert(END, ' {}'.format(message))
             self.text.config(state=DISABLED)
-        
+
     def clear(self):
         self.text.config(state=NORMAL)
         self.text.delete('1.0',END)
-        #for tag in self.tag_names():        
+        #for tag in self.tag_names():
         #    self.tag_delete(tag)
         self.text.config(state=DISABLED)
-    
+
     def contextAdvance(self, context, time):
         self.clear()
         self.append(context, 'advanced to time {}\n'.format(time))

@@ -15,5 +15,5 @@ limitations under the License.
 """
 
 """
-Unit tests for L{ofspy.context}.
+Unit tests for L{ofspy}.
 """

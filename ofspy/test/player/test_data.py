@@ -15,19 +15,15 @@ limitations under the License.
 """
 
 """
-Test cases for L{ofspy.game} package.
+Test cases for L{ofspy.player.Data} class.
 """
 
 import unittest
 
-from ..game import Game
-
-class GameTestCase(unittest.TestCase):
+class DataTestCase(unittest.TestCase):
     def setUp(self):
-        self.default = Game(2, 1000)
-
+        self.sar0 = Data('SAR',0)
+        self.sar1 = Data('SAR',1)
     def tearDown(self):
-        self.default = None
-
-    def test_generateContext(self):
-        self.default.generateContext(seed=0, ops='', fops='')
+        self.sar0 = None
+        self.sar1 = None

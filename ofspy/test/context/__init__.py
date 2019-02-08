@@ -1,5 +1,6 @@
 """
 Copyright 2015 Paul T. Grogan, Massachusetts Institute of Technology
+Copyright 2017 Paul T. Grogan, Massachusetts Institute of Technology
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,19 +16,5 @@ limitations under the License.
 """
 
 """
-Test cases for L{ofspy.game} package.
+Test cases for L{ofspy.context} package.
 """
-
-import unittest
-
-from ..game import Game
-
-class GameTestCase(unittest.TestCase):
-    def setUp(self):
-        self.default = Game(2, 1000)
-
-    def tearDown(self):
-        self.default = None
-
-    def test_generateContext(self):
-        self.default.generateContext(seed=0, ops='', fops='')

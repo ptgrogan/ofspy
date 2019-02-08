@@ -15,5 +15,5 @@ limitations under the License.
 """
 
 """
-OFSPY: Orbital Federates Simulation (Python).
+L{ofspy}: Orbital Federates Simulation (Python).
 """

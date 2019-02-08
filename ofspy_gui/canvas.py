@@ -98,7 +98,7 @@ class CanvasOFS(Canvas):
                 center[1] + r*math.sin(theta+angle))
         
     def drawFederate(self, federate, bbox, tags=()):
-        text = '{} Cash: {:>8.0f}'.format(federate.name, federate.cash)
+        text = '{} Cash: {:>8.0f}'.format(federate.name, federate.getCash())
         self.create_rectangle(bbox,
                               fill='black',
                               outline=self.colors[federate.name])

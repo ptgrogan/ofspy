@@ -17,7 +17,7 @@ limitations under the License.
 import logging
 
 from .game import Game
-from .simulator import Simulator
+from .simulation import Simulator
 
 class OFS(object):
     def __init__(self, elements, numPlayers, initialCash,
@@ -47,14 +47,14 @@ class OFS(object):
                              maxTime=numTurns)
         if elements is None:
             elements = []
-    
+
         def initializeGame(time):
             federates = [federate for federation in self.context.federations
                          for federate in federation.federates]
             elementSets = []
             for federate in federates:
                 elementSets.append([])
-            
+
             for eId, element in enumerate(elements):
                 specs = element.split(',')
                 if len(specs) > 0 and len(specs[0].split('@')) == 2:
@@ -65,19 +65,19 @@ class OFS(object):
                     else:
                         pId = 0
                         eType = specs[0].split('@')[0]
-                    
+
                     # parse location
                     location = next((l for l in self.context.locations
                                      if l.name == specs[0].split('@')[1]), None)
-                    
+
                     # parse modules
-                    if pId < len(federates) and location is not None:                    
+                    if pId < len(federates) and location is not None:
                         # generate elements
                         element = self.game.generateElement(eType, pId, eId, mTypes=specs[1:])
                         if element is not None:
                             elementSets[pId].append({'element':element,
                                                     'location':location})
-                            
+
             for i, elementSet in enumerate(elementSets):
                 federate = federates[i]
                 if federate.initialCash is None or federate.initialCash == 0:
@@ -87,28 +87,34 @@ class OFS(object):
                         federate.initialCash += element['element'].getDesignCost()
                         federate.initialCash += element['element'].getCommissionCost(
                             element['location'], self.context)
-                    federate.cash = federate.initialCash
+                    federate._cash = federate.initialCash
                 for element in elementSet:
                     federate.design(element['element'])
                     federate.commission(element['element'], element['location'], self.context)
-        
+
         def finalizeGame(time):
             for federate in [federate for federation in self.context.federations
                              for federate in federation.federates]:
                 federate.liquidate(self.context)
                 logging.info('{} final cash: {}'
-                            .format(federate.name, federate.cash))
+                            .format(federate.name, federate.getCash()))
         self.sim.on('init', initializeGame)
         self.sim.on('complete', finalizeGame)
-    
+
     def execute(self):
         """
         Executes an OFS.
         @return: L{list}
         """
         self.sim.execute()
+
         results = []
         for federate in [federate for federation in self.context.federations
                          for federate in federation.federates]:
-            results.append((federate.initialCash, federate.cash))
+            results.append({
+                'federate': federate.name,
+                'initialCash': federate.initialCash,
+                'finalCash': federate.getCash(),
+                'cashFlow': federate.cashFlow
+            })
         return results

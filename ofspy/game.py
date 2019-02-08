@@ -22,30 +22,21 @@ import logging
 import re
 
 from .context import Context
-from .surface import Surface
-from .orbit import Orbit
-from .demand import Demand
-from .disturbance import Disturbance
-from .valueSchedule import ValueSchedule
-from .federation import Federation
-from .federate import Federate
-from .operations import Operations
-from .operations_grb import DynamicOperations
-from .operations_grb import FixedCostDynamicOperations
+from .context.location import Surface, Orbit
+from .context.event import Demand, Disturbance, ValueSchedule
+from .player import Federation, Federate
+from .player.operations import Operations
+from .player.operations.dynamic import DynamicOperations
+from .player.operations.fixed_cost import FixedCostDynamicOperations
 
-from .storage import Storage
-from .sensor import Sensor
-from .defense import Defense
-from .interSatelliteLink import InterSatelliteLink
-from .spaceGroundLink import SpaceGroundLink
-from .groundStation import GroundStation
-from .satellite import Satellite
+from .player.module import Defense, Storage, Sensor, SpaceGroundLink, InterSatelliteLink
+from .player.element import GroundStation, Satellite
 
 class Game(object):
     """
     A L{Game} contains the complete game specification.
     """
-    
+
     def __init__(self, numPlayers, initialCash,
                  altitudes=['LEO','MEO','GEO'], numSectors=6):
         """
@@ -109,7 +100,7 @@ class Game(object):
         self.defenseTypes = [
             {'type':'DEF', 'cost':100, 'size':1}
         ]
-        
+
     def generateElement(self, eType, pId=None, eId=None, mTypes=[]):
         """
         Generates an element.
@@ -129,7 +120,7 @@ class Game(object):
             module = self.generateModule(mType, pId, eId, mId)
             if module is not None:
                 modules.append(module)
-        
+
         # parse and instantiate element based on type
         if any(t['type'] == eType for t in self.stationTypes):
             spec = next(t for t in self.stationTypes
@@ -154,7 +145,7 @@ class Game(object):
                              and eId is not None
                              else None)
         return None
-    
+
     def generateModule(self, mType, pId=None, eId=None, mId=None):
         """
         Generates a module.
@@ -242,7 +233,7 @@ class Game(object):
                 and mId is not None
                 else None)
         return None
-    
+
     def generateContext(self, seed=0, ops='', fops=''):
         """
         Generates the context for this game.
@@ -260,7 +251,7 @@ class Game(object):
             locations.append(Surface(i, name='SUR{0}'.format(i+1)))
             for altitude in self.altitudes:
                 locations.append(Orbit(i, altitude, name='{0}{1}'.format(altitude, i+1)))
-        
+
         # generate events based on known types
         events = []
         for eType in self.eventTypes:
@@ -278,7 +269,7 @@ class Game(object):
                                               name='{0}.{1}'.format(eType[2]['type'], i+1)))
                 else:
                     logging.warning('Cannot interpret event type {0}'.format(eType))
-        
+
         # generate federates based on number of players
         federates = []
         for i in range(self.numPlayers):
@@ -348,8 +339,8 @@ class Game(object):
             planningHorizon = 6
             storagePenalty = -100
             islPenalty = -10
-            costSGL = 50
-            costISL = 20
+            priceSGL = 50
+            priceISL = 20
             if re.match('x\d+,\d+,\d+,(?:a|\d+),\d+',fops) is not None:
                 # case xG,I,H,s,i:  SGL fixed cost G,
                 #                   ISL fixed cost I,
@@ -358,8 +349,8 @@ class Game(object):
                 #                   isl opportunity cost i
                 args = re.search('(\d+,\d+,\d+,(?:a|\d+),\d+)',
                                  fops).group(0).split(',')
-                costSGL = int(args[0])
-                costISL = int(args[1])
+                priceSGL = int(args[0])
+                priceISL = int(args[1])
                 planningHorizon = int(args[2])
                 if args[3]== 'a':
                     storagePenalty = None
@@ -385,19 +376,21 @@ class Game(object):
                 # FIXME: this case is not currently possible
                 args = re.search('(\d+,\d+,\d+)',
                                  fops).group(0).split(',')
-                costSGL = int(args[0])
-                costISL = int(args[1])
+                priceSGL = int(args[0])
+                priceISL = int(args[1])
                 planningHorizon = int(args[2])
             foperations = FixedCostDynamicOperations(
                 planningHorizon=planningHorizon,
                 storagePenalty=storagePenalty,
-                islPenalty=islPenalty,
-                costSGL=costSGL, costISL=costISL)
+                islPenalty=islPenalty)
+            for federate in federates:
+                federate.priceSGL = priceSGL
+                federate.priceISL = priceISL
         else:
             foperations = Operations()
         federation = Federation(name='FSS',
                                 federates=federates,
                                 operations=foperations)
-        
+
         return Context(locations=locations, events=events,
                        federations=[federation], seed=seed)

@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import argparse
+import json
 import logging
 import sys,os
 # add ofspy to system path
@@ -30,7 +31,7 @@ if __name__ == '__main__':
                         help='simulation duration (number of turns)')
     parser.add_argument('-p', '--numPlayers', type=int, default=None,
                         help='number of players')
-    parser.add_argument('-i', '--initialCash', type=int, default=None,
+    parser.add_argument('-i', '--initialCash', type=int, default=0,
                         help='initial cash')
     parser.add_argument('-s', '--seed', type=int, default=0,
                         help='random number seed')
@@ -87,5 +88,4 @@ if __name__ == '__main__':
     else:
         # execute simulation and output results
         results = ofs.execute()
-        for result in results:
-            print '{0}:{1}'.format(result[0], result[1])
+        print json.dumps(results)
