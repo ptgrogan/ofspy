@@ -1,9 +1,4 @@
-ofspy.komodoproject
 *.pyc
-bin/hosts
 bin/lp_debug.txt
-data/
-*.bat
-*.png
-*.csv
 *.log
+ofspy.egg-info/
