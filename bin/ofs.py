@@ -59,13 +59,17 @@ if __name__ == '__main__':
     # count the number of players if not specified
     if args.numPlayers is None:
         numPlayers = 0
+        # split the elements argument into individual elements
         for element in args.elements:
+            # split each element into components
             specs = element.split(',')
             if len(specs) > 0 and len(specs[0].split('@')) == 2:
                 # parse player ownership
                 if len(specs[0].split('@')[0].split('.')) == 2:
+                    # parse player owner from leading number
                     pId = int(specs[0].split('@')[0].split('.')[0])-1
                 else:
+                    # default to player 0
                     pId = 0
                 numPlayers = max(numPlayers, pId+1)
     else:
