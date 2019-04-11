@@ -20,6 +20,7 @@ L{ofspy.player.operations} package.
 """
 
 import math
+from functools import reduce
 
 class Operations(object):
     """
@@ -50,8 +51,7 @@ class Operations(object):
             values.extend(map(lambda d: d.getValueAt(0), demands))
             values = list(set(values))
             values.sort()
-            counts = map(lambda v: len([d for d in demands
-                                        if d.getValueAt(0) == v]), values)
+            counts = list(map(lambda v: len([d for d in demands if d.getValueAt(0) == v]), values))
             counts[0] += len(context.events) - len(demands)
             expValMax = reduce(lambda e, v:
                                e + v*(math.pow(sum(counts[0:values.index(v)+1]), 1)
