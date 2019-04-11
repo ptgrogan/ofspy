@@ -14,15 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from __future__ import print_function
 import argparse
 import json
 import logging
-import sys,os
-# add ofspy to system path
-sys.path.append(os.path.abspath('..'))
+import sys
+import os
 
 from ofspy.ofs import OFS
-    
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="This program runs an Orbital Federates simulation.")
     parser.add_argument('elements', type=str, nargs='+',
@@ -44,7 +44,7 @@ if __name__ == '__main__':
                         help='logging level')
     parser.add_argument('-g', '--gui', action='store_true',
                         help='launch with graphical user interface')
-    
+
     args = parser.parse_args()
     if args.logging == 'debug':
         level = logging.DEBUG
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     elif args.logging == 'error':
         level = logging.ERROR
     logging.basicConfig(level=level)
-    
+
     # count the number of players if not specified
     if args.numPlayers is None:
         numPlayers = 0
@@ -70,17 +70,23 @@ if __name__ == '__main__':
                 numPlayers = max(numPlayers, pId+1)
     else:
         numPlayers = args.numPlayers
-    
+
     # set up the simulation
     ofs = OFS(elements=args.elements, numTurns=args.numTurns,
                   numPlayers=numPlayers, initialCash=args.initialCash,
                   seed=args.seed, ops=args.ops, fops=args.fops)
-    
+
     if args.gui:
         # launch gui and start simulation
-        from Tkinter import Tk
+        # launch gui and start simulation
+        if sys.version_info[0] == 3:
+            # python3
+            from tkinter import Tk
+        else:
+            # python2
+            from Tkinter import Tk
         from ofspy_gui.frame import FrameOFS
-        
+
         root = Tk()
         frame = FrameOFS(root, ofs)
         ofs.sim.init()
@@ -88,4 +94,4 @@ if __name__ == '__main__':
     else:
         # execute simulation and output results
         results = ofs.execute()
-        print json.dumps(results)
+        print(json.dumps(results))

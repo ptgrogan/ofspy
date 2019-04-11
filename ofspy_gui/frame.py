@@ -16,7 +16,13 @@ limitations under the License.
 
 import os
 import pkg_resources
-from Tkinter import *
+import sys
+if sys.version_info[0] == 3:
+    # python3
+    from tkinter import *
+else:
+    # python2
+    from Tkinter import *
 from PIL import Image, ImageTk
 
 from .canvas import CanvasOFS
@@ -27,15 +33,15 @@ class FrameOFS(Frame):
     def __init__(self, root, ofs):
         Frame.__init__(self, root)
         self.pack(fill=BOTH, expand=YES)
-        
+
         canvas = CanvasOFS(root, ofs)
         log = LogOFS(root, ofs)
-        
+
         canvas.pack(side=LEFT, fill=BOTH)
         log.pack(side=RIGHT, fill=BOTH)
-        
+
         self.after(100, canvas.draw)
-        
+
         root.title("Orbital Federates Simulation")
         if "nt" == os.name:
             root.wm_iconbitmap(

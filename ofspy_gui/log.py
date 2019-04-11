@@ -14,13 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from Tkinter import *
+import sys
+if sys.version_info[0] == 3:
+    # python3
+    from tkinter import *
+else:
+    # python2
+    from Tkinter import *
 
 from ofspy.ofs import OFS
 from ofspy.context import Context
-from ofspy.controller import Federation, Federate
-from ofspy.element import Element
-from ofspy.module import Module
+from ofspy.player import Federation, Federate
+from ofspy.player.element import Element
+from ofspy.player.module import Module
 
 class LogOFS(Frame):
     def __init__(self, root, ofs):
